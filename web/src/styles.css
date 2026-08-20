@@ -2332,3 +2332,92 @@ input[type='checkbox']:focus-visible {
   border: 1px dashed var(--border, #555);
   border-radius: 8px;
 }
+
+.settings-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border, #444);
+  margin-bottom: 14px;
+}
+
+.settings-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 14px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.settings-tab:hover {
+  color: var(--text);
+}
+
+.settings-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.settings-tab-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.check-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #444);
+  border-radius: 8px;
+  background: rgba(127, 127, 127, 0.06);
+}
+
+.check-progress-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(127, 127, 127, 0.2);
+  overflow: hidden;
+}
+
+.check-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.check-progress-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(127, 127, 127, 0.3);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+.spinner-sm {
+  width: 12px;
+  height: 12px;
+}
+
+.model-row.checking {
+  border-color: var(--accent);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

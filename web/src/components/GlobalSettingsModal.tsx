@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
-import type { FreeModel, CustomModel, ModelStatusEntry } from '../types'
+import type { FreeModel, CustomModel, ModelStatusEntry, CheckState } from '../types'
 import {
   getTheme,
   setTheme,
@@ -20,8 +20,13 @@ interface Props {
   onClose: () => void
 }
 
+type Tab = 'interface' | 'server' | 'models'
+
+const EMPTY_CHECK: CheckState = { running: false, total: 0, done: 0, current: null, startedAt: 0, error: '' }
+
 export default function GlobalSettingsModal({ onClose }: Props) {
   useEscape(onClose)
+  const [tab, setTab] = useState<Tab>('interface')
   const [theme, setThemeState] = useState<ThemePref>(getTheme())
   const [density, setDensityState] = useState(getDensity())
   const [showModel, setShowModelState] = useState(getShowModel())
@@ -37,8 +42,7 @@ export default function GlobalSettingsModal({ onClose }: Props) {
   const [models, setModels] = useState<FreeModel[]>([])
   const [modelStatus, setModelStatus] = useState<Record<string, ModelStatusEntry>>({})
   const [customModels, setCustomModels] = useState<CustomModel[]>([])
-  const [checking, setChecking] = useState(false)
-  const [checkErr, setCheckErr] = useState('')
+  const [check, setCheck] = useState<CheckState>(EMPTY_CHECK)
   const [showAddModel, setShowAddModel] = useState(false)
   const [newModel, setNewModel] = useState<CustomModel>({ id: '', name: '', apiKey: '', baseURL: '', context: undefined, output: undefined })
 
@@ -48,6 +52,7 @@ export default function GlobalSettingsModal({ onClose }: Props) {
       .then((r) => {
         setModels(r.models)
         setModelStatus(r.status || {})
+        setCheck(r.check || EMPTY_CHECK)
       })
       .catch(() => {})
     api
@@ -64,23 +69,34 @@ export default function GlobalSettingsModal({ onClose }: Props) {
     loadModels()
   }, [])
 
+  useEffect(() => {
+    if (!check.running) return
+    const timer = setInterval(() => {
+      api
+        .models()
+        .then((r) => {
+          setModels(r.models)
+          setModelStatus(r.status || {})
+          setCheck(r.check || EMPTY_CHECK)
+        })
+        .catch(() => {})
+    }, 1500)
+    return () => clearInterval(timer)
+  }, [check.running])
+
   const runCheck = async () => {
-    setChecking(true)
-    setCheckErr('')
+    setErr('')
+    setMsg('')
     try {
       const freeIds = models.filter((m) => m.source !== 'custom').map((m) => m.id)
       if (!freeIds.length) {
-        setCheckErr('Нет свободных моделей для проверки.')
+        setMsg('Нет свободных моделей для проверки.')
         return
       }
-      const r = await api.checkModels(freeIds)
-      setModelStatus((prev) => ({ ...prev, ...r.results }))
-      loadModels()
-      setMsg('Проверка доступности завершена. Нерабочие модели скрыты из списка.')
+      await api.checkModels(freeIds)
+      setCheck({ ...check, running: true })
     } catch (err2) {
-      setCheckErr(err2 instanceof Error ? err2.message : String(err2))
-    } finally {
-      setChecking(false)
+      setErr(err2 instanceof Error ? err2.message : String(err2))
     }
   }
 
@@ -183,203 +199,244 @@ export default function GlobalSettingsModal({ onClose }: Props) {
     return Number.isFinite(n) && n > 0 ? Math.round(n) : undefined
   }
 
+  const percent = check.total ? Math.round((check.done / check.total) * 100) : 0
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal modal-settings" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <h2>Настройки</h2>
 
-        <label className="field">
-          <span>Тема</span>
-          <select value={theme} onChange={(e) => onTheme(e.target.value as ThemePref)}>
-            <option value="system">Системная</option>
-            <option value="dark">Тёмная</option>
-            <option value="light">Светлая</option>
-          </select>
-        </label>
+        <div className="settings-tabs" role="tablist">
+          <button className={`settings-tab ${tab === 'interface' ? 'active' : ''}`} onClick={() => setTab('interface')} role="tab">
+            Интерфейс
+          </button>
+          <button className={`settings-tab ${tab === 'server' ? 'active' : ''}`} onClick={() => setTab('server')} role="tab">
+            Сервер
+          </button>
+          <button className={`settings-tab ${tab === 'models' ? 'active' : ''}`} onClick={() => setTab('models')} role="tab">
+            Модели
+          </button>
+        </div>
 
-        <label className="field">
-          <span>Плотность интерфейса</span>
-          <select value={density} onChange={(e) => onDensity(e.target.value)}>
-            <option value="normal">Обычная</option>
-            <option value="compact">Компактная</option>
-          </select>
-        </label>
+        {tab === 'interface' && (
+          <div className="settings-tab-body">
+            <label className="field">
+              <span>Тема</span>
+              <select value={theme} onChange={(e) => onTheme(e.target.value as ThemePref)}>
+                <option value="system">Системная</option>
+                <option value="dark">Тёмная</option>
+                <option value="light">Светлая</option>
+              </select>
+            </label>
 
-        <label className="check">
-          <input type="checkbox" checked={showModel} onChange={(e) => onShowModel(e.target.checked)} />
-          <span>Показывать модель в сообщениях</span>
-        </label>
+            <label className="field">
+              <span>Плотность интерфейса</span>
+              <select value={density} onChange={(e) => onDensity(e.target.value)}>
+                <option value="normal">Обычная</option>
+                <option value="compact">Компактная</option>
+              </select>
+            </label>
 
-        <label className="check">
-          <input type="checkbox" checked={showTokens} onChange={(e) => onShowTokens(e.target.checked)} />
-          <span>Показывать токены в сообщениях</span>
-        </label>
+            <label className="check">
+              <input type="checkbox" checked={showModel} onChange={(e) => onShowModel(e.target.checked)} />
+              <span>Показывать модель в сообщениях</span>
+            </label>
 
-        <label className="check">
-          <input type="checkbox" checked={showReasoning} onChange={(e) => onShowReasoning(e.target.checked)} />
-          <span>Показывать рассуждения модели (что она «думает»)</span>
-        </label>
+            <label className="check">
+              <input type="checkbox" checked={showTokens} onChange={(e) => onShowTokens(e.target.checked)} />
+              <span>Показывать токены в сообщениях</span>
+            </label>
 
-        <div className="settings-divider" />
-
-        <form onSubmit={saveServer}>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={openBrowser}
-              onChange={(e) => setOpenBrowser(e.target.checked)}
-            />
-            <span>Открывать браузер при старте менеджера</span>
-          </label>
-          <div className="modal-actions">
-            <button type="submit" className="btn btn-primary" disabled={busy}>
-              {busy ? 'Сохранение…' : 'Сохранить'}
-            </button>
+            <label className="check">
+              <input type="checkbox" checked={showReasoning} onChange={(e) => onShowReasoning(e.target.checked)} />
+              <span>Показывать рассуждения модели (что она «думает»)</span>
+            </label>
           </div>
-        </form>
+        )}
 
-        <div className="settings-divider" />
-
-        <div className="models-section">
-          <h3 className="settings-subhead">Модели</h3>
-          <div className="models-actions">
-            <button className="btn" onClick={() => void runCheck()} disabled={checking || models.filter((m) => m.source !== 'custom').length === 0}>
-              {checking ? 'Проверка…' : 'Проверить доступность'}
-            </button>
-            <button className="btn" onClick={() => setShowAddModel((v) => !v)}>
-              {showAddModel ? 'Отмена' : '+ Своя модель'}
-            </button>
-          </div>
-          {checkErr && <div className="error">{checkErr}</div>}
-
-          <div className="models-list">
-            {models.length === 0 && <div className="muted small">Список моделей пуст.</div>}
-            {models.map((m) => {
-              const st = m.source === 'custom' ? null : modelStatus[m.id]
-              return (
-                <div className="model-row" key={m.id}>
-                  <span className="model-row-name">
-                    {m.name}
-                    {m.source === 'custom' && <span className="badge badge-custom">своя</span>}
-                  </span>
-                  <span className="muted small model-row-meta">
-                    {m.id}
-                    {m.context ? ` · ${Math.round(m.context / 1000)}K ctx` : ''}
-                  </span>
-                  {m.source === 'custom' ? (
-                    <button className="btn btn-small btn-danger" onClick={() => void removeModel(m.id)}>
-                      Удалить
-                    </button>
-                  ) : st ? (
-                    st.status === 'ok' ? (
-                      <span className="model-status model-status-ok">✓ работает</span>
-                    ) : (
-                      <span className="model-status model-status-no" title={st.reason || ''}>
-                        ✗ не работает
-                      </span>
-                    )
-                  ) : (
-                    <span className="model-status muted">не проверена</span>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          {showAddModel && (
-            <form className="add-model-form" onSubmit={addModel}>
-              <div className="settings-row">
-                <label className="field">
-                  <span>ID модели</span>
-                  <input
-                    value={newModel.id}
-                    onChange={(e) => setNewModel((m) => ({ ...m, id: e.target.value }))}
-                    placeholder="например openai/gpt-4o или openai/gpt-4o-mini"
-                    required
-                  />
-                </label>
-                <label className="field">
-                  <span>Название (необязательно)</span>
-                  <input
-                    value={newModel.name || ''}
-                    onChange={(e) => setNewModel((m) => ({ ...m, name: e.target.value }))}
-                    placeholder="GPT-4o"
-                  />
-                </label>
-              </div>
-              <div className="settings-row">
-                <label className="field">
-                  <span>API-ключ (для платных)</span>
-                  <input
-                    type="password"
-                    value={newModel.apiKey || ''}
-                    onChange={(e) => setNewModel((m) => ({ ...m, apiKey: e.target.value }))}
-                    placeholder="sk-…"
-                  />
-                </label>
-                <label className="field">
-                  <span>Base URL (необязательно)</span>
-                  <input
-                    value={newModel.baseURL || ''}
-                    onChange={(e) => setNewModel((m) => ({ ...m, baseURL: e.target.value }))}
-                    placeholder="https://api.openai.com/v1"
-                  />
-                </label>
-              </div>
-              <div className="settings-row">
-                <label className="field">
-                  <span>Context (токенов)</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={newModel.context || ''}
-                    onChange={(e) => setNewModel((m) => ({ ...m, context: num(e.target.value) }))}
-                    placeholder="128000"
-                  />
-                </label>
-                <label className="field">
-                  <span>Max output (токенов)</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={newModel.output || ''}
-                    onChange={(e) => setNewModel((m) => ({ ...m, output: num(e.target.value) }))}
-                    placeholder="16384"
-                  />
-                </label>
-              </div>
+        {tab === 'server' && (
+          <div className="settings-tab-body">
+            <form onSubmit={saveServer}>
+              <label className="check">
+                <input type="checkbox" checked={openBrowser} onChange={(e) => setOpenBrowser(e.target.checked)} />
+                <span>Открывать браузер при старте менеджера</span>
+              </label>
               <div className="modal-actions">
-                <button type="submit" className="btn btn-primary">
-                  Добавить модель
+                <button type="submit" className="btn btn-primary" disabled={busy}>
+                  {busy ? 'Сохранение…' : 'Сохранить'}
                 </button>
               </div>
             </form>
-          )}
-        </div>
 
-        <div className="settings-divider" />
+            <div className="settings-divider" />
 
-        <form onSubmit={changePassword}>
-          <h3 className="settings-subhead">Смена пароля администратора</h3>
-          <div className="settings-row">
-            <label className="field">
-              <span>Новый пароль</span>
-              <input type="password" value={pwd1} onChange={(e) => setPwd1(e.target.value)} autoComplete="new-password" />
-            </label>
-            <label className="field">
-              <span>Подтверждение</span>
-              <input type="password" value={pwd2} onChange={(e) => setPwd2(e.target.value)} autoComplete="new-password" />
-            </label>
+            <form onSubmit={changePassword}>
+              <h3 className="settings-subhead">Смена пароля администратора</h3>
+              <div className="settings-row">
+                <label className="field">
+                  <span>Новый пароль</span>
+                  <input type="password" value={pwd1} onChange={(e) => setPwd1(e.target.value)} autoComplete="new-password" />
+                </label>
+                <label className="field">
+                  <span>Подтверждение</span>
+                  <input type="password" value={pwd2} onChange={(e) => setPwd2(e.target.value)} autoComplete="new-password" />
+                </label>
+              </div>
+              <div className="modal-actions">
+                <button type="submit" className="btn btn-primary" disabled={busy || !pwd1}>
+                  {busy ? 'Сохранение…' : 'Сменить пароль'}
+                </button>
+              </div>
+            </form>
           </div>
-          <div className="modal-actions">
-            <button type="submit" className="btn btn-primary" disabled={busy || !pwd1}>
-              {busy ? 'Сохранение…' : 'Сменить пароль'}
-            </button>
+        )}
+
+        {tab === 'models' && (
+          <div className="settings-tab-body">
+            <div className="models-section">
+              <div className="models-actions">
+                <button
+                  className="btn btn-primary"
+                  onClick={() => void runCheck()}
+                  disabled={check.running || models.filter((m) => m.source !== 'custom').length === 0}
+                >
+                  {check.running ? `Проверка… ${check.done}/${check.total}` : 'Проверить доступность'}
+                </button>
+                <button className="btn" onClick={() => setShowAddModel((v) => !v)}>
+                  {showAddModel ? 'Отмена' : '+ Своя модель'}
+                </button>
+              </div>
+
+              {check.running && (
+                <div className="check-progress">
+                  <div className="check-progress-bar">
+                    <div className="check-progress-fill" style={{ width: `${percent}%` }} />
+                  </div>
+                  <div className="check-progress-info">
+                    <span className="spinner" aria-hidden="true" />
+                    <span>
+                      Проверяется: <strong>{check.current || '…'}</strong> ({check.done}/{check.total})
+                    </span>
+                    <span className="muted small">{percent}%</span>
+                  </div>
+                </div>
+              )}
+              {!check.running && check.done > 0 && (
+                <div className="muted small">Проверка завершена: {check.done} из {check.total} моделей.</div>
+              )}
+              {check.error && <div className="error">{check.error}</div>}
+              {err && <div className="error">{err}</div>}
+
+              <div className="models-list">
+                {models.length === 0 && <div className="muted small">Список моделей пуст.</div>}
+                {models.map((m) => {
+                  const st = m.source === 'custom' ? null : modelStatus[m.id]
+                  const isChecking = check.running && check.current === m.id
+                  return (
+                    <div className={`model-row ${isChecking ? 'checking' : ''}`} key={m.id}>
+                      {isChecking && <span className="spinner spinner-sm" aria-hidden="true" />}
+                      <span className="model-row-name">
+                        {m.name}
+                        {m.source === 'custom' && <span className="badge badge-custom">своя</span>}
+                      </span>
+                      <span className="muted small model-row-meta">
+                        {m.id}
+                        {m.context ? ` · ${Math.round(m.context / 1000)}K ctx` : ''}
+                      </span>
+                      {m.source === 'custom' ? (
+                        <button className="btn btn-small btn-danger" onClick={() => void removeModel(m.id)}>
+                          Удалить
+                        </button>
+                      ) : st ? (
+                        st.status === 'ok' ? (
+                          <span className="model-status model-status-ok">✓ работает</span>
+                        ) : (
+                          <span className="model-status model-status-no" title={st.reason || ''}>
+                            ✗ не работает
+                          </span>
+                        )
+                      ) : (
+                        <span className="model-status muted">не проверена</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {showAddModel && (
+                <form className="add-model-form" onSubmit={addModel}>
+                  <div className="settings-row">
+                    <label className="field">
+                      <span>ID модели</span>
+                      <input
+                        value={newModel.id}
+                        onChange={(e) => setNewModel((m) => ({ ...m, id: e.target.value }))}
+                        placeholder="например openai/gpt-4o или openai/gpt-4o-mini"
+                        required
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Название (необязательно)</span>
+                      <input
+                        value={newModel.name || ''}
+                        onChange={(e) => setNewModel((m) => ({ ...m, name: e.target.value }))}
+                        placeholder="GPT-4o"
+                      />
+                    </label>
+                  </div>
+                  <div className="settings-row">
+                    <label className="field">
+                      <span>API-ключ (для платных)</span>
+                      <input
+                        type="password"
+                        value={newModel.apiKey || ''}
+                        onChange={(e) => setNewModel((m) => ({ ...m, apiKey: e.target.value }))}
+                        placeholder="sk-…"
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Base URL (необязательно)</span>
+                      <input
+                        value={newModel.baseURL || ''}
+                        onChange={(e) => setNewModel((m) => ({ ...m, baseURL: e.target.value }))}
+                        placeholder="https://api.openai.com/v1"
+                      />
+                    </label>
+                  </div>
+                  <div className="settings-row">
+                    <label className="field">
+                      <span>Context (токенов)</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={newModel.context || ''}
+                        onChange={(e) => setNewModel((m) => ({ ...m, context: num(e.target.value) }))}
+                        placeholder="128000"
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Max output (токенов)</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={newModel.output || ''}
+                        onChange={(e) => setNewModel((m) => ({ ...m, output: num(e.target.value) }))}
+                        placeholder="16384"
+                      />
+                    </label>
+                  </div>
+                  <div className="modal-actions">
+                    <button type="submit" className="btn btn-primary">
+                      Добавить модель
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           </div>
-        </form>
+        )}
 
         {msg && <div className="settings-msg">{msg}</div>}
-        {err && <div className="error">{err}</div>}
 
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>

@@ -38,11 +38,21 @@ export interface ModelStatusEntry {
   checkedAt: number
 }
 
+export interface CheckState {
+  running: boolean
+  total: number
+  done: number
+  current: string | null
+  startedAt: number
+  error: string
+}
+
 export interface ModelsResult {
   models: FreeModel[]
   provider: string
   status: Record<string, ModelStatusEntry>
   statusAt: number
+  check: CheckState
 }
 
 export interface ManagerSettings {

@@ -114,6 +114,107 @@ export function setModelStatus(id, status) {
   fs.writeFileSync(MODELS_STATUS_FILE, JSON.stringify(all, null, 2), 'utf8')
 }
 
+/* ---------- фоновая проверка доступности ---------- */
+
+export const checkState = {
+  running: false,
+  total: 0,
+  done: 0,
+  current: null,
+  startedAt: 0,
+  error: ''
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms))
+}
+
+async function oc(base, apiPath, { method = 'GET', body } = {}) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 40000)
+  try {
+    const res = await fetch(base + apiPath, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body,
+      signal: controller.signal
+    })
+    const text = await res.text()
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${text.slice(0, 200)}`)
+    return text ? JSON.parse(text) : null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function probeModel(project, modelId) {
+  const base = `http://${project.host || '127.0.0.1'}:${project.port}`
+  const providerID = getProviderOfModel(modelId)
+  const modelID = modelId.replace(/^[^/]+\//, '')
+  try {
+    const created = await oc(base, '/session', {
+      method: 'POST',
+      body: JSON.stringify({ title: 'Проверка модели' })
+    })
+    const sessionID = created.id
+    try {
+      await oc(base, `/session/${sessionID}/prompt_async`, {
+        method: 'POST',
+        body: JSON.stringify({
+          model: { providerID, modelID },
+          parts: [{ type: 'text', text: 'Ответь одним словом: ок' }]
+        })
+      })
+    } catch (err) {
+      return { status: 'unavailable', reason: `ошибка запуска: ${String(err.message || err).slice(0, 200)}` }
+    }
+    await sleep(12000)
+    try {
+      const msgs = await oc(base, `/session/${sessionID}/message?limit=1`)
+      const last = Array.isArray(msgs) ? msgs[msgs.length - 1] : null
+      const info = last?.info || last
+      if (info?.role === 'assistant' && info?.time?.completed) {
+        return { status: 'ok' }
+      }
+      const errData = info?.error?.data?.message || info?.error?.name || ''
+      return { status: 'unavailable', reason: errData ? `ошибка: ${errData.slice(0, 200)}` : 'нет ответа за 12 с' }
+    } finally {
+      try {
+        await oc(base, `/session/${sessionID}`, { method: 'DELETE' })
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch (err) {
+    return { status: 'unavailable', reason: String(err.message || err).slice(0, 200) }
+  }
+}
+
+export async function runAvailabilityCheck(project, modelIds) {
+  if (checkState.running) return { started: false, reason: 'already' }
+  const ids = modelIds.filter((id) => id && String(id).trim())
+  checkState.running = true
+  checkState.total = ids.length
+  checkState.done = 0
+  checkState.current = null
+  checkState.startedAt = Date.now()
+  checkState.error = ''
+  try {
+    for (const id of ids) {
+      checkState.current = id
+      const r = await probeModel(project, id)
+      setModelStatus(id, { ...r, checkedAt: Date.now() })
+      checkState.done++
+    }
+  } catch (err) {
+    checkState.error = String(err.message || err)
+  } finally {
+    checkState.running = false
+    checkState.current = null
+  }
+  return { started: true }
+}
+
 /* ---------- конфиг opencode для пользовательских провайдеров ---------- */
 
 export function writeOpenCodeConfig() {
@@ -147,11 +248,10 @@ function filterByStatus(models) {
   })
 }
 
-export function getModelList() {
+export function getModelList(includeUnavailable = false) {
   const live = getFreeModels()
-  const liveMap = new Map(live.map((m) => [m.id, m]))
-  const free = FREE_MODELS_FALLBACK
-    .map((m) => liveMap.get(m.id) || { id: m.id, name: m.id, context: m.context, output: m.output })
+  const base = live.length ? live : getFallbackModels()
+  const free = base
     .filter((m) => m && m.id)
     .map((m) => ({
       id: m.id,
@@ -167,7 +267,8 @@ export function getModelList() {
     output: m.output,
     source: 'custom'
   }))
-  return [...filterByStatus(free), ...custom]
+  const all = [...free, ...custom]
+  return includeUnavailable ? all : filterByStatus(all)
 }
 
 export function getProviderOfModel(id) {

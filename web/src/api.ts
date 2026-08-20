@@ -112,7 +112,7 @@ export const api = {
     request<{ healthy: boolean; version: string; opencode: string; host: string; port: number }>('/health'),
   models: () => request<ModelsResult>('/models'),
   checkModels: (models: string[]) =>
-    request<{ ok: boolean; results: Record<string, ModelStatusEntry> }>('/models/check', {
+    request<{ ok: boolean; started: boolean }>('/models/check', {
       method: 'POST',
       body: JSON.stringify({ models })
     }),

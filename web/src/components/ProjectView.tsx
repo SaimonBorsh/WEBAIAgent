@@ -56,7 +56,14 @@ export default function ProjectView({ projectId, onBack, onChanged }: Props) {
         api.projectConfig(projectId)
       ])
       setProject(p)
-      if (modelRes.models.length) setModels(modelRes.models)
+      if (modelRes.models.length) {
+        const usable = modelRes.models.filter((m) => {
+          if (m.source === 'custom') return true
+          const st = modelRes.status[m.id]
+          return !st || st.status === 'ok'
+        })
+        setModels(usable.length ? usable : modelRes.models)
+      }
       setConfig(cfg)
       setError('')
     } catch (err) {

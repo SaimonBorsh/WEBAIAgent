@@ -3,11 +3,15 @@
  * publish.cjs — сборка переносимого дистрибутива WEBAIAgent
  *
  * Использование:
- *   node scripts/publish.cjs [версия] [--out <dir>] [--skip-build] [--skip-node]
+ *   node scripts/publish.cjs [версия] [--out <dir>] [--skip-build] [--skip-node] [--release]
  *
  * Версия по умолчанию: следующая после последней в versions/ или backups/.
  * Собирает web, бандлит сервер и keepalive (esbuild, ESM .mjs),
  * раскладывает по макету WEBAIA/, обновляет current.txt и упаковывает zip.
+ *
+ * Дополнительно собирает WEBAIA-<version>-update.zip (только содержимое версии:
+ * server.bundle.cjs + web/dist + version.json) — лёгкий архив для обновления через UI.
+ * Флаг --release публикует оба zip в GitHub Releases (требует gh + права).
  */
 const { execSync, spawnSync } = require('node:child_process')
 const fs = require('node:fs')
@@ -42,6 +46,7 @@ function argValue(name) {
 const versionArg = args.find((a) => !a.startsWith('--'))
 const skipBuild = args.includes('--skip-build')
 const skipNode = args.includes('--skip-node')
+const doRelease = args.includes('--release')
 
 function nextVersion() {
   const dirs = []
@@ -282,7 +287,26 @@ async function main() {
   const zipPath = path.join(OUT_DIR, `WEBAIA-${version}.zip`)
   zipDir(WEBAIA, zipPath)
 
+  log('publish', 'сборка лёгкого архива обновления (только версия)')
+  const updateZipPath = path.join(OUT_DIR, `WEBAIA-${version}-update.zip`)
+  zipDir(verDir, updateZipPath)
+
+  if (doRelease) {
+    log('release', `публикация GitHub Releases: ${version}`)
+    const gh = process.env.WEBAIA_GH || 'gh'
+    const args = [
+      'release', 'create', version,
+      zipPath, updateZipPath,
+      '--title', `WEBAIA ${version}`,
+      '--notes', `Релиз WEBAIA ${version}`
+    ]
+    console.log(`> ${gh} ${args.join(' ')}`)
+    const r = spawnSync(gh, args, { stdio: 'inherit' })
+    if (r.status !== 0) throw new Error(`gh release create завершился с кодом ${r.status}`)
+  }
+
   log('publish', `ГОТОВО: ${zipPath}`)
+  log('publish', `ОБНОВЛЕНИЕ: ${updateZipPath}`)
   console.log('Установка: распаковать zip в любую папку, запустить start.cmd')
 }
 

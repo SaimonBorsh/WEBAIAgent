@@ -1,7 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import os from 'node:os'
 import { spawnSync } from 'node:child_process'
-import { VERSIONS_DIR, CURRENT_FILE } from './config.js'
+import { VERSIONS_DIR, CURRENT_FILE, GH_REPO, GH_TOKEN } from './config.js'
 
 export function listVersions() {
   let current = null
@@ -109,4 +110,98 @@ function findNestedServerBundle(dir) {
 
 export function setCurrent(name) {
   return switchVersion(name)
+}
+
+function parseVersionNumber(name) {
+  const m = /^v(\d+)$/.exec(String(name || ''))
+  return m ? Number(m[1]) : NaN
+}
+
+async function ghApi(pathname) {
+  const url = `https://api.github.com${pathname}`
+  const headers = { Accept: 'application/vnd.github+json', 'User-Agent': 'webaia-manager' }
+  if (GH_TOKEN) headers.Authorization = `Bearer ${GH_TOKEN}`
+  const res = await fetch(url, { headers })
+  if (!res.ok) {
+    throw new Error(`GitHub API ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`)
+  }
+  return res.json()
+}
+
+function ghRepo() {
+  return GH_REPO.replace(/\s/g, '')
+}
+
+export async function checkGithubUpdate() {
+  let data
+  try {
+    data = await ghApi(`/repos/${ghRepo()}/releases/latest`)
+  } catch (e) {
+    const is404 = /404/.test(e.message)
+    if (is404) {
+      const releases = await ghApi(`/repos/${ghRepo()}/releases?per_page=1`)
+      if (Array.isArray(releases) && releases.length === 0) {
+        return {
+          available: false,
+          noReleases: true,
+          current: readCurrent(),
+          latest: null,
+          name: '',
+          published: null,
+          body: '',
+          downloadUrl: null,
+          fullZipUrl: null,
+          updateSize: 0
+        }
+      }
+    }
+    throw e
+  }
+  const tag = String(data.tag_name || '')
+  if (!/^v\d+$/.test(tag)) {
+    throw new Error(`Релиз «${tag}» имеет неверный номер (ожидается вида v36)`)
+  }
+  const updateAsset = (data.assets || []).find((a) => /-update\.zip$/.test(a.name))
+  const fullAsset = (data.assets || []).find((a) => /\.zip$/.test(a.name) && !/-update\.zip$/.test(a.name))
+  const current = readCurrent()
+  const currentNum = parseVersionNumber(current)
+  const latestNum = parseVersionNumber(tag)
+  return {
+    available: Number.isFinite(currentNum) && Number.isFinite(latestNum) && latestNum > currentNum,
+    noReleases: false,
+    current,
+    latest: tag,
+    name: data.name || tag,
+    published: data.published_at || null,
+    body: data.body || '',
+    downloadUrl: updateAsset?.browser_download_url || null,
+    fullZipUrl: fullAsset?.browser_download_url || null,
+    updateSize: updateAsset?.size || 0
+  }
+}
+
+function readCurrent() {
+  try {
+    return fs.readFileSync(CURRENT_FILE, 'utf8').trim() || null
+  } catch {
+    return null
+  }
+}
+
+export async function downloadUpdateZip(version) {
+  const info = await ghApi(`/repos/${ghRepo()}/releases/latest`)
+  const asset = (info.assets || []).find((a) => /-update\.zip$/.test(a.name))
+  if (!asset?.browser_download_url) throw new Error('В последнем релизе нет архива обновления (*-update.zip)')
+  const res = await fetch(asset.browser_download_url, {
+    headers: GH_TOKEN ? { Authorization: `Bearer ${GH_TOKEN}`, 'User-Agent': 'webaia-manager' } : { 'User-Agent': 'webaia-manager' }
+  })
+  if (!res.ok) throw new Error(`Скачивание релиза: HTTP ${res.status}`)
+  const buf = Buffer.from(await res.arrayBuffer())
+  const tmp = path.join(os.tmpdir(), `webaia-update-${Date.now()}.zip`)
+  fs.writeFileSync(tmp, buf)
+  try {
+    return extractVersionZip(tmp, version)
+  } finally {
+    fs.rmSync(tmp, { force: true })
+  }
 }

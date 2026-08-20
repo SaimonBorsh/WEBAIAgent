@@ -13,7 +13,7 @@ import { getModelList, refreshFreeModels } from './models.js'
 import { listDir } from './fsbrowse.js'
 import { validateCredentials, createToken, destroyToken, getToken, authMiddleware } from './auth.js'
 import { getSettings, updateSettings } from './settings.js'
-import { listVersions, switchVersion, extractVersionZip } from './versions.js'
+import { listVersions, switchVersion, extractVersionZip, checkGithubUpdate, downloadUpdateZip } from './versions.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -201,6 +201,31 @@ app.get('/api/versions', (req, res) => {
   const { current, versions } = listVersions()
   res.json({ current, versions })
 })
+
+app.get('/api/updates', asyncHandler(async (req, res) => {
+  try {
+    res.json(await checkGithubUpdate())
+  } catch (e) {
+    res.status(400).json({ error: e.message })
+  }
+}))
+
+app.post('/api/updates/install', asyncHandler(async (req, res) => {
+  try {
+    const info = await checkGithubUpdate()
+    if (!info.available) {
+      return res.status(400).json({ error: 'Нет доступных обновлений' })
+    }
+    const result = await downloadUpdateZip(info.latest)
+    res.json({ ok: true, ...result, restarting: true })
+    setTimeout(() => {
+      manager.stopAll()
+      process.exit(0)
+    }, 300)
+  } catch (e) {
+    res.status(400).json({ error: e.message })
+  }
+}))
 
 app.post('/api/versions/switch', express.json({ limit: '1mb' }), (req, res) => {
   const name = String(req.body?.version || '')

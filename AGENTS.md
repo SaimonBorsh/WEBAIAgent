@@ -21,8 +21,15 @@ npm run backup       # снапшот в backups/<метка>/ (npm run backup -
 - **Каждое осмысленное изменение** (фикс, фича, правка конфига/доков) — коммит + push:
   `git add -A` → `git commit -m "<описание>"` → `git push`.
 - **Не завершать сессию с незакоммиченными изменениями.** Перед концом работы проверить `git status`; если есть незакоммиченное — закоммитить и запушить (или явно спросить пользователя).
-- **Не коммитить:** `node_modules`, `dist`, `logs`, `backups/`, `publish/`, `server/{projects,tokens,settings}.json` (в `.gitignore`).
+- **Не коммитить:** `node_modules`, `dist`, `logs`, `backups/`, `publish/`, `server/{projects,tokens,settings,gh_token}.json` (в `.gitignore`).
 - **Архивы версий** (`publish.cjs vN` + `backup.js vN`) — по-прежнему только перед выкладкой версий, в git не идут.
+
+## Релизы (GitHub Releases)
+
+- Сборка и публикация: `node scripts/publish.cjs v<N> --release` — делает `publish/WEBAIA-v<N>.zip` (полный дистрибутив, для установки с нуля) и `publish/WEBAIA-v<N>-update.zip` (только версия, ~1 МБ, для обновления через UI), публикует оба в GitHub Releases (тег `v<N>`) и обновляет `current.txt`. Затем `node scripts/backup.js v<N>` (снимок исходников).
+- Автообновление в вебе: окно «Версии» → «Обновления с GitHub» — `GET /api/updates` (проверка последнего релиза) и `POST /api/updates/install` (скачивает `*-update.zip` → `extractVersionZip` в `versions/v<N>/` → перезапуск).
+- Репозиторий: `SaimonBorsh/WEBAIAgent` (приватный). GitHub API менеджер ходит с токеном из `WEBAIA_GH_TOKEN` или `server/gh_token.txt` (gitignored). Репо настраивается через `WEBAIA_GH_REPO` (по умолч. `SaimonBorsh/WEBAIAgent`).
+- Внимание: в GitHub API путь репо передаётся как `owner/repo` (без `%2F`).
 
 Тестов, линтера и CI нет. Typecheck = `npm run build --workspace=web` (или `npx tsc` в `web/`). Серверная часть — обычный JS (ESM), без typecheck.
 

@@ -13,7 +13,8 @@ import type {
   QuestionRequest,
   ManagerSettings,
   VersionInfo,
-  VersionsResult
+  VersionsResult,
+  UpdateInfo
 } from './types'
 
 import { toast } from './toast'
@@ -114,6 +115,8 @@ export const api = {
       body: JSON.stringify(data)
     }),
   versions: () => request<VersionsResult>('/versions'),
+  updates: () => request<UpdateInfo>('/updates'),
+  installUpdate: () => request<{ ok: boolean; name: string; restarting: boolean }>('/updates/install', { method: 'POST' }),
   switchVersion: (version: string) =>
     request<{ ok: boolean; name: string; active: boolean; restarting: boolean }>('/versions/switch', {
       method: 'POST',

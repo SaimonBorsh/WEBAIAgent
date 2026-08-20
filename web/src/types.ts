@@ -42,6 +42,19 @@ export interface VersionsResult {
   versions: VersionInfo[]
 }
 
+export interface UpdateInfo {
+  available: boolean
+  noReleases?: boolean
+  current: string | null
+  latest: string | null
+  name: string
+  published: string | null
+  body: string
+  downloadUrl: string | null
+  fullZipUrl: string | null
+  updateSize: number
+}
+
 export interface SessionConfig {
   model?: string
   agent?: string

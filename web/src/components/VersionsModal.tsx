@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { useEscape } from '../useEscape'
 import { toast } from '../toast'
-import type { VersionsResult } from '../types'
+import type { VersionsResult, UpdateInfo } from '../types'
 
 interface Props {
   onClose: () => void
@@ -22,12 +22,39 @@ export default function VersionsModal({ onClose }: Props) {
   const [busy, setBusy] = useState(false)
   const [newName, setNewName] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [update, setUpdate] = useState<UpdateInfo | null>(null)
+  const [updateErr, setUpdateErr] = useState('')
+  const [updating, setUpdating] = useState(false)
 
   const load = async () => {
     try {
       setData(await api.versions())
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  const checkUpdate = async () => {
+    setUpdateErr('')
+    setUpdate(null)
+    try {
+      setUpdate(await api.updates())
+    } catch (e) {
+      setUpdateErr(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  const doInstallUpdate = async () => {
+    if (!confirm(`Установить обновление ${update?.latest}? Менеджер перезапустится (~10-20 секунд).`)) return
+    setUpdating(true)
+    setUpdateErr('')
+    try {
+      await api.installUpdate()
+      toast(`Установка ${update?.latest}… перезапуск`, 'success')
+      setTimeout(() => window.location.reload(), 1500)
+    } catch (e) {
+      setUpdateErr(e instanceof Error ? e.message : String(e))
+      setUpdating(false)
     }
   }
 
@@ -120,6 +147,51 @@ export default function VersionsModal({ onClose }: Props) {
             </div>
           ))}
         </div>
+
+        <div className="settings-divider" />
+
+        <h3 className="settings-subhead">Обновления с GitHub</h3>
+        {update === null && !updateErr && (
+          <button className="btn" onClick={() => void checkUpdate()} disabled={updating}>
+            Проверить обновления
+          </button>
+        )}
+        {updateErr && <div className="error">{updateErr}</div>}
+        {update && (
+          <div className="update-card">
+            <div className="update-info">
+              {update.noReleases ? (
+                <span className="muted">Релизов на GitHub ещё нет — после выхода первого релиза здесь появится кнопка обновления.</span>
+              ) : (
+                <>
+                  <span className="version-name">
+                    {update.latest}
+                    {update.name !== update.latest && ` — ${update.name}`}
+                  </span>
+                  {update.available ? (
+                    <span className="badge">доступно</span>
+                  ) : (
+                    <span className="muted">установлена последняя версия</span>
+                  )}
+                  {update.published && <div className="version-meta muted">{new Date(update.published).toLocaleString()}</div>}
+                  {update.body && <div className="version-notes">{update.body.slice(0, 500)}</div>}
+                </>
+              )}
+            </div>
+            {!update.noReleases && update.available ? (
+              <button className="btn btn-primary" onClick={() => void doInstallUpdate()} disabled={updating}>
+                {updating ? 'Установка…' : 'Установить и перезапустить'}
+              </button>
+            ) : (
+              update.fullZipUrl && (
+                <a className="btn" href={update.fullZipUrl} target="_blank" rel="noreferrer">
+                  Скачать полный дистрибутив
+                </a>
+              )
+            )}
+          </div>
+        )}
+        {update === null && !updateErr && <p className="muted">Проверяет последний релиз в GitHub.</p>}
 
         <div className="settings-divider" />
 

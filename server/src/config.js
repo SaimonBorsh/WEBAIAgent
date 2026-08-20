@@ -1,5 +1,6 @@
 import path from 'node:path'
 import os from 'node:os'
+import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -37,6 +38,19 @@ export const KEEPALIVE_PID_FILE = path.join(BASE_DIR, 'keepalive.pid')
 
 export const MODELS_URL = 'https://models.dev/api.json'
 export const MODELS_CACHE_TTL_MS = 6 * 60 * 60 * 1000
+
+export const GH_REPO = process.env.WEBAIA_GH_REPO || 'SaimonBorsh/WEBAIAgent'
+
+function loadGhToken() {
+  if (process.env.WEBAIA_GH_TOKEN) return process.env.WEBAIA_GH_TOKEN
+  try {
+    return fs.readFileSync(path.join(SERVER_DIR, 'gh_token.txt'), 'utf8').trim()
+  } catch {
+    return ''
+  }
+}
+
+export const GH_TOKEN = loadGhToken()
 
 export const FREE_MODELS_FALLBACK = [
   { id: 'big-pickle', context: 200000, output: 32000 },

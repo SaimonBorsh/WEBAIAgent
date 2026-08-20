@@ -14,6 +14,16 @@ npm run build        # сборка web/ (это же typecheck)
 npm run backup       # снапшот в backups/<метка>/ (npm run backup -- <метка>)
 ```
 
+## Git (обязательное правило)
+
+Проект в git, remote: `https://github.com/SaimonBorsh/WEBAIAgent` (приватный). Ветка `master`.
+
+- **Каждое осмысленное изменение** (фикс, фича, правка конфига/доков) — коммит + push:
+  `git add -A` → `git commit -m "<описание>"` → `git push`.
+- **Не завершать сессию с незакоммиченными изменениями.** Перед концом работы проверить `git status`; если есть незакоммиченное — закоммитить и запушить (или явно спросить пользователя).
+- **Не коммитить:** `node_modules`, `dist`, `logs`, `backups/`, `publish/`, `server/{projects,tokens,settings}.json` (в `.gitignore`).
+- **Архивы версий** (`publish.cjs vN` + `backup.js vN`) — по-прежнему только перед выкладкой версий, в git не идут.
+
 Тестов, линтера и CI нет. Typecheck = `npm run build --workspace=web` (или `npx tsc` в `web/`). Серверная часть — обычный JS (ESM), без typecheck.
 
 ## Архитектура (npm-workspaces)

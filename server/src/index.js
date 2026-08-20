@@ -466,17 +466,6 @@ app.use('/api/projects/:id', asyncHandler(async (req, res) => {
   if (!manager.isRunning(project.id)) {
     return res.status(409).json({ error: 'Сервер проекта остановлен. Нажмите «Запустить».' })
   }
-  if (process.env.WEBAIA_PROXY_DEBUG) {
-    let buf = ''
-    req.on('data', (c) => { buf += c; if (buf.length > 1500) buf = buf.slice(-1500) })
-    req.on('end', () => {
-      const orig = res.writeHead.bind(res)
-      res.writeHead = (status, ...rest) => {
-        console.error(`[proxy] ${req.method} ${req.originalUrl} -> ${status} ct=${JSON.stringify(req.headers['content-type'])} body=${buf.slice(0, 200)}`)
-        return orig(status, ...rest)
-      }
-    })
-  }
   proxyToOpenCode(req, res, project)
 }))
 

@@ -105,7 +105,13 @@ export function removeCustomModel(id) {
 
 export function getModelStatus() {
   const data = readJson(MODELS_STATUS_FILE, {})
-  return data && typeof data === 'object' ? data : {}
+  if (!data || typeof data !== 'object') return {}
+  const out = {}
+  for (const [k, v] of Object.entries(data)) {
+    const key = k.includes('/') ? k : `opencode/${k}`
+    out[key] = v
+  }
+  return out
 }
 
 export function setModelStatus(id, status) {
@@ -255,7 +261,7 @@ export function getModelList(includeUnavailable = false) {
   const free = base
     .filter((m) => m && m.id)
     .map((m) => ({
-      id: m.id,
+      id: m.id.includes('/') ? m.id : `opencode/${m.id}`,
       name: m.name,
       context: m.context,
       output: m.output,

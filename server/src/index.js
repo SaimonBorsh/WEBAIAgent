@@ -297,7 +297,7 @@ app.post('/api/models/check', express.json({ limit: '1mb' }), asyncHandler(async
   if (!Array.isArray(modelIds) || !modelIds.length) {
     return res.status(400).json({ error: 'Не переданы модели для проверки' })
   }
-  const candidates = modelIds.map((s) => String(s).replace(/^opencode\//, ''))
+  const candidates = modelIds.map((s) => String(s))
   const project = registry.list().find((p) => !p.archived && manager.isRunning(p.id))
   if (!project) {
     return res.status(409).json({ error: 'Нет запущенного проекта — проверка моделей недоступна. Запустите любой проект.' })

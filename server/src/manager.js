@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import http from 'node:http'
 import { EventEmitter } from 'node:events'
-import { BASE_DIR, DATA_DIR, INTERNAL_HOST, LOGS_DIR } from './config.js'
+import { BASE_DIR, DATA_DIR, INTERNAL_HOST, LOGS_DIR, OPENCODE_CONFIG_FILE } from './config.js'
 
 export const managerEvents = new EventEmitter()
 
@@ -81,16 +81,21 @@ export async function start(project) {
   fs.mkdirSync(LOGS_DIR, { recursive: true })
   const logStream = fs.createWriteStream(path.join(LOGS_DIR, `${project.id}.log`), { flags: 'a' })
 
+  const env = {
+    ...process.env,
+    ...(process.env.WEBAIA_DATA
+      ? { XDG_DATA_HOME: path.join(DATA_DIR, 'opencode-data') }
+      : {})
+  }
+  if (fs.existsSync(OPENCODE_CONFIG_FILE)) {
+    env.OPENCODE_CONFIG = OPENCODE_CONFIG_FILE
+  }
+
   const proc = spawn(opencodeExe, ['serve', '--port', String(project.port), '--hostname', INTERNAL_HOST], {
     cwd: project.path,
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
-    env: {
-      ...process.env,
-      ...(process.env.WEBAIA_DATA
-        ? { XDG_DATA_HOME: path.join(DATA_DIR, 'opencode-data') }
-        : {})
-    }
+    env
   })
 
   const entry = { proc, logStream }

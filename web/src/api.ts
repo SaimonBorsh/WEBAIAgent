@@ -1,6 +1,9 @@
 import type {
   Project,
   FreeModel,
+  CustomModel,
+  ModelStatusEntry,
+  ModelsResult,
   SessionInfo,
   SessionConfig,
   MessageItem,
@@ -107,7 +110,20 @@ export const api = {
   auth: () => request<{ ok: boolean; user: string }>('/auth'),
   health: () =>
     request<{ healthy: boolean; version: string; opencode: string; host: string; port: number }>('/health'),
-  models: () => request<{ models: FreeModel[]; provider: string }>('/models'),
+  models: () => request<ModelsResult>('/models'),
+  checkModels: (models: string[]) =>
+    request<{ ok: boolean; results: Record<string, ModelStatusEntry> }>('/models/check', {
+      method: 'POST',
+      body: JSON.stringify({ models })
+    }),
+  customModels: () => request<{ models: CustomModel[] }>('/models/custom'),
+  addCustomModel: (data: Omit<CustomModel, 'id'> & { id: string }) =>
+    request<{ ok: boolean; model: CustomModel }>('/models/custom', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  removeCustomModel: (id: string) =>
+    request<{ ok: boolean }>(`/models/custom/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   settings: () => request<ManagerSettings>('/settings'),
   updateSettings: (data: { password?: string; openBrowserOnStart?: boolean }) =>
     request<ManagerSettings & { ok: boolean }>('/settings', {

@@ -31,7 +31,7 @@ type FieldErrors = Partial<Record<'temperature' | 'topP' | 'maxTokens', string>>
 export default function ProjectSettingsModal({ project, models, onDone, onClose }: Props) {
   useEscape(onClose)
   const defaults = project.defaults || {}
-  const [model, setModel] = useState(project.defaultModel?.split('/')[1] || models[0]?.id || 'deepseek-v4-flash-free')
+  const [model, setModel] = useState(project.defaultModel || 'opencode/deepseek-v4-flash-free')
   const [agent, setAgent] = useState(project.defaultAgent || 'build')
   const [autoStart, setAutoStart] = useState(Boolean(project.autoStart))
   const [temperature, setTemperature] = useState(defaults.temperature?.toString() ?? '')

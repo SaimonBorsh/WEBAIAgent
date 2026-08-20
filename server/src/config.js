@@ -39,6 +39,10 @@ export const KEEPALIVE_PID_FILE = path.join(BASE_DIR, 'keepalive.pid')
 export const MODELS_URL = 'https://models.dev/api.json'
 export const MODELS_CACHE_TTL_MS = 6 * 60 * 60 * 1000
 
+export const CUSTOM_MODELS_FILE = path.join(DATA_DIR, 'custom_models.json')
+export const MODELS_STATUS_FILE = path.join(DATA_DIR, 'models_status.json')
+export const OPENCODE_CONFIG_FILE = path.join(DATA_DIR, 'opencode.custom.json')
+
 export const GH_REPO = process.env.WEBAIA_GH_REPO || 'SaimonBorsh/WEBAIAgent'
 
 function loadGhToken() {

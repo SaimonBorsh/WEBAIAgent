@@ -7,6 +7,9 @@ server/projects.json
 server/tokens.json
 server/settings.json
 server/gh_token.txt
+server/custom_models.json
+server/models_status.json
+server/opencode.custom.json
 backups/
 publish/
 publish/.cache/

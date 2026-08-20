@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Project, SessionInfo, SessionConfig, FreeModel } from '../types'
 import { api, subscribeEvents } from '../api'
 import Chat from './Chat'
@@ -45,6 +45,8 @@ export default function ProjectView({ projectId, onBack, onChanged }: Props) {
   const [showRename, setShowRename] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const activeKey = `webaia_active_${projectId}`
+  const archivedSetRef = useRef<Record<string, boolean>>({})
+  archivedSetRef.current = config?.archivedSessions || {}
 
   const reload = useCallback(async () => {
     try {
@@ -72,7 +74,9 @@ export default function ProjectView({ projectId, onBack, onChanged }: Props) {
       setSelectedId((cur) => {
         if (cur && list.some((s) => s.id === cur)) return cur
         const saved = localStorage.getItem(activeKey)
-        return saved && list.some((s) => s.id === saved) ? saved : null
+        if (saved && list.some((s) => s.id === saved)) return saved
+        const first = list.find((s) => !archivedSetRef.current[s.id]) || list[0]
+        return first ? first.id : null
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))

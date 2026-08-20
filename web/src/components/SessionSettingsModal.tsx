@@ -37,7 +37,7 @@ export default function SessionSettingsModal({
 }: Props) {
   useEscape(onClose)
   const [title, setTitle] = useState(mode === 'edit' ? defaultName : '')
-  const [model, setModel] = useState(initialConfig.model?.split('/')[1] || models[0]?.id || 'deepseek-v4-flash-free')
+  const [model, setModel] = useState(initialConfig.model || 'opencode/deepseek-v4-flash-free')
   const [agent, setAgent] = useState(initialConfig.agent || 'build')
   const [temperature, setTemperature] = useState(initialConfig.temperature?.toString() ?? '')
   const [topP, setTopP] = useState(initialConfig.topP?.toString() ?? '')

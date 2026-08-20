@@ -20,6 +20,29 @@ export interface FreeModel {
   name: string
   context: number
   output: number
+  source?: 'free' | 'custom'
+}
+
+export interface CustomModel {
+  id: string
+  name: string
+  apiKey?: string
+  baseURL?: string
+  context?: number
+  output?: number
+}
+
+export interface ModelStatusEntry {
+  status: 'ok' | 'unavailable'
+  reason?: string
+  checkedAt: number
+}
+
+export interface ModelsResult {
+  models: FreeModel[]
+  provider: string
+  status: Record<string, ModelStatusEntry>
+  statusAt: number
 }
 
 export interface ManagerSettings {

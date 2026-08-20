@@ -25,6 +25,10 @@ interface Props {
 
 const MAX_DRAG_BYTES = 5 * 1024 * 1024
 
+function draftKey(projectId: string, sessionId: string): string {
+  return `webaia_draft_${projectId}_${sessionId}`
+}
+
 const SUGGESTIONS = [
   'Проанализируй проект и опиши его структуру',
   'Создай AGENTS.md в корне проекта',
@@ -176,6 +180,16 @@ export default function Chat({ projectId, sessionId, config }: Props) {
     setStatusText('')
     setAttachments([])
     setQuestions([])
+    try {
+      setInput(localStorage.getItem(draftKey(projectId, sessionId)) || '')
+    } catch {
+setInput('')
+    try {
+      localStorage.removeItem(draftKey(projectId, sessionId))
+    } catch {
+      /* ignore */
+    }
+    }
     fullLoadedRef.current = false
     serverCountRef.current = 0
     setVisibleLimit(150)
@@ -665,7 +679,14 @@ export default function Chat({ projectId, sessionId, config }: Props) {
         <textarea
           ref={inputRef}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value)
+            try {
+              localStorage.setItem(draftKey(projectId, sessionId), e.target.value)
+            } catch {
+              /* ignore */
+            }
+          }}
           onKeyDown={onKeyDown}
           placeholder="Сообщение агенту… (Enter — отправить, Shift+Enter — новая строка, перетащите файлы сюда)"
           rows={2}

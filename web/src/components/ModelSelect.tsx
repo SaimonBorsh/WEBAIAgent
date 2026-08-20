@@ -14,21 +14,33 @@ function fmt(n: number): string {
   return String(n)
 }
 
+function displayName(m: FreeModel): string {
+  return m.source === 'custom' ? m.name : m.name
+}
+
 export default function ModelSelect({ models, value, onChange, disabled }: Props) {
+  const free = models.filter((m) => m.source !== 'custom')
+  const custom = models.filter((m) => m.source === 'custom')
+  const options = (group: FreeModel[], label: string) => (
+    <optgroup key={label} label={label}>
+      {group.map((m) => (
+        <option key={m.id} value={m.id}>
+          {displayName(m)}
+          {m.context ? ` · ctx ${fmt(m.context)}` : ''}
+        </option>
+      ))}
+    </optgroup>
+  )
   return (
     <select
       className="model-select"
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
-      title="Модель по умолчанию (бесплатные модели opencode)"
+      title="Модель: бесплатные модели opencode или пользовательские"
     >
-      {models.map((m) => (
-        <option key={m.id} value={m.id}>
-          {m.name}
-          {m.context ? ` · ctx ${fmt(m.context)}` : ''}
-        </option>
-      ))}
+      {custom.length > 0 && options(custom, 'Свои модели')}
+      {options(free, 'Бесплатные (opencode)')}
     </select>
   )
 }

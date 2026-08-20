@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
+import type { FreeModel, CustomModel, ModelStatusEntry } from '../types'
 import {
   getTheme,
   setTheme,
@@ -33,12 +34,55 @@ export default function GlobalSettingsModal({ onClose }: Props) {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
 
+  const [models, setModels] = useState<FreeModel[]>([])
+  const [modelStatus, setModelStatus] = useState<Record<string, ModelStatusEntry>>({})
+  const [customModels, setCustomModels] = useState<CustomModel[]>([])
+  const [checking, setChecking] = useState(false)
+  const [checkErr, setCheckErr] = useState('')
+  const [showAddModel, setShowAddModel] = useState(false)
+  const [newModel, setNewModel] = useState<CustomModel>({ id: '', name: '', apiKey: '', baseURL: '', context: undefined, output: undefined })
+
+  const loadModels = () => {
+    api
+      .models()
+      .then((r) => {
+        setModels(r.models)
+        setModelStatus(r.status || {})
+      })
+      .catch(() => {})
+    api
+      .customModels()
+      .then((r) => setCustomModels(r.models))
+      .catch(() => {})
+  }
+
   useEffect(() => {
     api
       .settings()
       .then((s) => setOpenBrowser(s.openBrowserOnStart))
       .catch(() => {})
+    loadModels()
   }, [])
+
+  const runCheck = async () => {
+    setChecking(true)
+    setCheckErr('')
+    try {
+      const freeIds = models.filter((m) => m.source !== 'custom').map((m) => m.id)
+      if (!freeIds.length) {
+        setCheckErr('Нет свободных моделей для проверки.')
+        return
+      }
+      const r = await api.checkModels(freeIds)
+      setModelStatus((prev) => ({ ...prev, ...r.results }))
+      loadModels()
+      setMsg('Проверка доступности завершена. Нерабочие модели скрыты из списка.')
+    } catch (err2) {
+      setCheckErr(err2 instanceof Error ? err2.message : String(err2))
+    } finally {
+      setChecking(false)
+    }
+  }
 
   const onTheme = (t: ThemePref) => {
     setThemeState(t)
@@ -109,6 +153,36 @@ export default function GlobalSettingsModal({ onClose }: Props) {
     }
   }
 
+  const addModel = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErr('')
+    try {
+      await api.addCustomModel(newModel)
+      setShowAddModel(false)
+      setNewModel({ id: '', name: '', apiKey: '', baseURL: '', context: undefined, output: undefined })
+      loadModels()
+      setMsg('Модель добавлена. Перезапустите сервер проекта, чтобы она стала доступной.')
+    } catch (err2) {
+      setErr(err2 instanceof Error ? err2.message : String(err2))
+    }
+  }
+
+  const removeModel = async (id: string) => {
+    setErr('')
+    try {
+      await api.removeCustomModel(id)
+      loadModels()
+      setMsg('Модель удалена.')
+    } catch (err2) {
+      setErr(err2 instanceof Error ? err2.message : String(err2))
+    }
+  }
+
+  const num = (v: string): number | undefined => {
+    const n = parseFloat(v.replace(',', '.'))
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : undefined
+  }
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal modal-settings" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
@@ -163,6 +237,125 @@ export default function GlobalSettingsModal({ onClose }: Props) {
             </button>
           </div>
         </form>
+
+        <div className="settings-divider" />
+
+        <div className="models-section">
+          <h3 className="settings-subhead">Модели</h3>
+          <div className="models-actions">
+            <button className="btn" onClick={() => void runCheck()} disabled={checking || models.filter((m) => m.source !== 'custom').length === 0}>
+              {checking ? 'Проверка…' : 'Проверить доступность'}
+            </button>
+            <button className="btn" onClick={() => setShowAddModel((v) => !v)}>
+              {showAddModel ? 'Отмена' : '+ Своя модель'}
+            </button>
+          </div>
+          {checkErr && <div className="error">{checkErr}</div>}
+
+          <div className="models-list">
+            {models.length === 0 && <div className="muted small">Список моделей пуст.</div>}
+            {models.map((m) => {
+              const st = m.source === 'custom' ? null : modelStatus[m.id]
+              return (
+                <div className="model-row" key={m.id}>
+                  <span className="model-row-name">
+                    {m.name}
+                    {m.source === 'custom' && <span className="badge badge-custom">своя</span>}
+                  </span>
+                  <span className="muted small model-row-meta">
+                    {m.id}
+                    {m.context ? ` · ${Math.round(m.context / 1000)}K ctx` : ''}
+                  </span>
+                  {m.source === 'custom' ? (
+                    <button className="btn btn-small btn-danger" onClick={() => void removeModel(m.id)}>
+                      Удалить
+                    </button>
+                  ) : st ? (
+                    st.status === 'ok' ? (
+                      <span className="model-status model-status-ok">✓ работает</span>
+                    ) : (
+                      <span className="model-status model-status-no" title={st.reason || ''}>
+                        ✗ не работает
+                      </span>
+                    )
+                  ) : (
+                    <span className="model-status muted">не проверена</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {showAddModel && (
+            <form className="add-model-form" onSubmit={addModel}>
+              <div className="settings-row">
+                <label className="field">
+                  <span>ID модели</span>
+                  <input
+                    value={newModel.id}
+                    onChange={(e) => setNewModel((m) => ({ ...m, id: e.target.value }))}
+                    placeholder="например openai/gpt-4o или openai/gpt-4o-mini"
+                    required
+                  />
+                </label>
+                <label className="field">
+                  <span>Название (необязательно)</span>
+                  <input
+                    value={newModel.name || ''}
+                    onChange={(e) => setNewModel((m) => ({ ...m, name: e.target.value }))}
+                    placeholder="GPT-4o"
+                  />
+                </label>
+              </div>
+              <div className="settings-row">
+                <label className="field">
+                  <span>API-ключ (для платных)</span>
+                  <input
+                    type="password"
+                    value={newModel.apiKey || ''}
+                    onChange={(e) => setNewModel((m) => ({ ...m, apiKey: e.target.value }))}
+                    placeholder="sk-…"
+                  />
+                </label>
+                <label className="field">
+                  <span>Base URL (необязательно)</span>
+                  <input
+                    value={newModel.baseURL || ''}
+                    onChange={(e) => setNewModel((m) => ({ ...m, baseURL: e.target.value }))}
+                    placeholder="https://api.openai.com/v1"
+                  />
+                </label>
+              </div>
+              <div className="settings-row">
+                <label className="field">
+                  <span>Context (токенов)</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={newModel.context || ''}
+                    onChange={(e) => setNewModel((m) => ({ ...m, context: num(e.target.value) }))}
+                    placeholder="128000"
+                  />
+                </label>
+                <label className="field">
+                  <span>Max output (токенов)</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={newModel.output || ''}
+                    onChange={(e) => setNewModel((m) => ({ ...m, output: num(e.target.value) }))}
+                    placeholder="16384"
+                  />
+                </label>
+              </div>
+              <div className="modal-actions">
+                <button type="submit" className="btn btn-primary">
+                  Добавить модель
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
 
         <div className="settings-divider" />
 

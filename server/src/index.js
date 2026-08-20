@@ -9,7 +9,7 @@ import { BIND_HOST, INTERNAL_HOST, LAN_HOST, MANAGER_PORT, ROOT_DIR, DATA_DIR } 
 import * as registry from './registry.js'
 import * as manager from './manager.js'
 import { proxyToOpenCode } from './proxy.js'
-import { getModelList, refreshFreeModels } from './models.js'
+import { getModelList, refreshFreeModels, getModelStatus, setModelStatus, getProviderOfModel, getCustomModels, addCustomModel, removeCustomModel, getFreeModels } from './models.js'
 import { listDir } from './fsbrowse.js'
 import { validateCredentials, createToken, destroyToken, getToken, authMiddleware } from './auth.js'
 import { getSettings, updateSettings } from './settings.js'
@@ -267,7 +267,93 @@ app.post(
 )
 
 app.get('/api/models', asyncHandler(async (req, res) => {
-  res.json({ models: getModelList(), provider: 'opencode' })
+  const status = getModelStatus()
+  res.json({
+    models: getModelList(),
+    provider: 'opencode',
+    status,
+    statusAt: Object.values(status).filter((s) => s && s.checkedAt).map((s) => s.checkedAt).sort().reverse()[0] || 0
+  })
+}))
+
+app.post('/api/models/check', express.json({ limit: '1mb' }), asyncHandler(async (req, res) => {
+  const modelIds = req.body?.models
+  if (!Array.isArray(modelIds) || !modelIds.length) {
+    return res.status(400).json({ error: 'Не переданы модели для проверки' })
+  }
+  const candidates = new Set(modelIds.map((s) => String(s).replace(/^opencode\//, '')))
+  const project = registry.list().find((p) => !p.archived && manager.isRunning(p.id))
+  if (!project) {
+    return res.status(409).json({ error: 'Нет запущенного проекта — проверка моделей недоступна. Запустите любой проект.' })
+  }
+
+  const results = {}
+  for (const id of candidates) {
+    if (candidates.size > 12 && results.ok) {
+      results[id] = { status: 'unavailable', reason: 'пропущено (достигнут лимит проверки)', checkedAt: Date.now() }
+      continue
+    }
+    const r = await probeModel(project, id)
+    results[id] = { ...r, checkedAt: Date.now() }
+    setModelStatus(id, results[id])
+  }
+  res.json({ ok: true, results })
+}))
+
+async function probeModel(project, modelId) {
+  const providerID = getProviderOfModel(modelId)
+  const modelID = modelId.replace(/^[^/]+\//, '')
+  try {
+    const created = await fetchOpenCode(project, '/session', {
+      method: 'POST',
+      body: JSON.stringify({ title: 'Проверка модели' })
+    })
+    const sessionID = created.id
+    try {
+      await fetchOpenCode(project, `/session/${sessionID}/prompt_async`, {
+        method: 'POST',
+        body: JSON.stringify({
+          model: { providerID, modelID },
+          parts: [{ type: 'text', text: 'Ответь одним словом: ок' }]
+        })
+      })
+    } catch (err) {
+      return { status: 'unavailable', reason: `ошибка запуска: ${String(err.message || err).slice(0, 200)}` }
+    }
+    await new Promise((r) => setTimeout(r, 12000))
+    try {
+      const msgs = await fetchOpenCode(project, `/session/${sessionID}/message?limit=1`)
+      const last = Array.isArray(msgs) ? msgs[msgs.length - 1] : null
+      const info = last?.info || last
+      if (info?.role === 'assistant' && info?.time?.completed) {
+        return { status: 'ok' }
+      }
+      const errData = info?.error?.data?.message || info?.error?.name || ''
+      return { status: 'unavailable', reason: errData ? `ошибка: ${errData.slice(0, 200)}` : 'нет ответа за 12 с' }
+    } finally {
+      try {
+        await fetchOpenCode(project, `/session/${sessionID}`, { method: 'DELETE' })
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch (err) {
+    return { status: 'unavailable', reason: String(err.message || err).slice(0, 200) }
+  }
+}
+
+app.get('/api/models/custom', asyncHandler(async (req, res) => {
+  res.json({ models: getCustomModels() })
+}))
+
+app.post('/api/models/custom', express.json({ limit: '1mb' }), asyncHandler(async (req, res) => {
+  const saved = addCustomModel(req.body || {})
+  res.json({ ok: true, model: saved })
+}))
+
+app.delete('/api/models/custom/:id', asyncHandler(async (req, res) => {
+  removeCustomModel(String(req.params.id))
+  res.json({ ok: true })
 }))
 
 app.get('/api/projects', asyncHandler(async (req, res) => {

@@ -100,6 +100,17 @@ export default function GlobalSettingsModal({ onClose }: Props) {
     }
   }
 
+  const checkOne = async (id: string) => {
+    setErr('')
+    setMsg('')
+    try {
+      await api.checkModels([id])
+      setCheck({ ...check, running: true })
+    } catch (err2) {
+      setErr(err2 instanceof Error ? err2.message : String(err2))
+    }
+  }
+
   const onTheme = (t: ThemePref) => {
     setThemeState(t)
     setTheme(t)
@@ -330,7 +341,7 @@ export default function GlobalSettingsModal({ onClose }: Props) {
               <div className="models-list">
                 {models.length === 0 && <div className="muted small">Список моделей пуст.</div>}
                 {models.map((m) => {
-                  const st = m.source === 'custom' ? null : modelStatus[m.id]
+                  const st = m.source === 'custom' ? modelStatus[m.id] || null : modelStatus[m.id]
                   const isChecking = check.running && check.current === m.id
                   return (
                     <div className={`model-row ${isChecking ? 'checking' : ''}`} key={m.id}>
@@ -343,11 +354,15 @@ export default function GlobalSettingsModal({ onClose }: Props) {
                         {m.id}
                         {m.context ? ` · ${Math.round(m.context / 1000)}K ctx` : ''}
                       </span>
+                      <button className="btn btn-small" onClick={() => void checkOne(m.id)} disabled={check.running}>
+                        Проверить
+                      </button>
                       {m.source === 'custom' ? (
                         <button className="btn btn-small btn-danger" onClick={() => void removeModel(m.id)}>
                           Удалить
                         </button>
-                      ) : st ? (
+                      ) : null}
+                      {st ? (
                         st.status === 'ok' ? (
                           <span className="model-status model-status-ok">✓ работает</span>
                         ) : (
@@ -366,15 +381,15 @@ export default function GlobalSettingsModal({ onClose }: Props) {
               {showAddModel && (
                 <form className="add-model-form" onSubmit={addModel}>
                   <div className="settings-row">
-                    <label className="field">
-                      <span>ID модели</span>
-                      <input
-                        value={newModel.id}
-                        onChange={(e) => setNewModel((m) => ({ ...m, id: e.target.value }))}
-                        placeholder="например openai/gpt-4o или openai/gpt-4o-mini"
-                        required
-                      />
-                    </label>
+<label className="field">
+                  <span>ID модели</span>
+                  <input
+                    value={newModel.id}
+                    onChange={(e) => setNewModel((m) => ({ ...m, id: e.target.value }))}
+                    placeholder="openai/gpt-4o или ollama/qwen3.5:9b-32k"
+                    required
+                  />
+                </label>
                     <label className="field">
                       <span>Название (необязательно)</span>
                       <input

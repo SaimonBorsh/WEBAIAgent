@@ -9,7 +9,7 @@ import { BIND_HOST, INTERNAL_HOST, LAN_HOST, MANAGER_PORT, ROOT_DIR, DATA_DIR } 
 import * as registry from './registry.js'
 import * as manager from './manager.js'
 import { proxyToOpenCode } from './proxy.js'
-import { getModelList, refreshFreeModels, getModelStatus, setModelStatus, getProviderOfModel, getCustomModels, addCustomModel, removeCustomModel, getFreeModels, checkState, runAvailabilityCheck } from './models.js'
+import { getModelList, refreshFreeModels, getModelStatus, setModelStatus, getProviderOfModel, getCustomModels, addCustomModel, removeCustomModel, getFreeModels, checkState, runAvailabilityCheck, writeOpenCodeConfig } from './models.js'
 import { listDir } from './fsbrowse.js'
 import { validateCredentials, createToken, destroyToken, getToken, authMiddleware } from './auth.js'
 import { getSettings, updateSettings } from './settings.js'
@@ -54,6 +54,21 @@ function asyncHandler(fn) {
       if (!res.headersSent) res.status(400).json({ error: err.message })
     })
   }
+}
+
+async function restartRunningProjects() {
+  const running = registry.list().filter((p) => !p.archived && manager.isRunning(p.id))
+  let count = 0
+  for (const p of running) {
+    try {
+      await manager.stop(p)
+      await manager.start(p)
+      count++
+    } catch (err) {
+      console.error(`[models] перезапуск проекта ${p.id} после смены моделей: ${err.message}`)
+    }
+  }
+  return count
 }
 
 app.post('/api/login', express.json({ limit: '1mb' }), asyncHandler(async (req, res) => {
@@ -297,12 +312,14 @@ app.get('/api/models/custom', asyncHandler(async (req, res) => {
 
 app.post('/api/models/custom', express.json({ limit: '1mb' }), asyncHandler(async (req, res) => {
   const saved = addCustomModel(req.body || {})
-  res.json({ ok: true, model: saved })
+  const restarted = await restartRunningProjects()
+  res.json({ ok: true, model: saved, restarted })
 }))
 
 app.delete('/api/models/custom/:id', asyncHandler(async (req, res) => {
   removeCustomModel(String(req.params.id))
-  res.json({ ok: true })
+  const restarted = await restartRunningProjects()
+  res.json({ ok: true, restarted })
 }))
 
 app.get('/api/projects', asyncHandler(async (req, res) => {
@@ -380,6 +397,7 @@ app.delete('/api/projects/:id', asyncHandler(async (req, res) => {
 app.post('/api/projects/:id/start', asyncHandler(async (req, res) => {
   const project = registry.get(req.params.id)
   if (!project) return res.status(404).json({ error: 'Проект не найден' })
+  writeOpenCodeConfig()
   const result = await manager.start(project)
   res.json({ project: { ...project, ...manager.getStatus(project) }, result })
 }))

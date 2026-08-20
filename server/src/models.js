@@ -69,13 +69,14 @@ function readJson(file, def) {
 
 export function getCustomModels() {
   const data = readJson(CUSTOM_MODELS_FILE, [])
-  return Array.isArray(data) ? data : []
+  const arr = Array.isArray(data) ? data : []
+  return arr.map((m) => ({ ...m, id: normalizeModelId(m.id, m.baseURL) })).filter((m) => m.id)
 }
 
 export function addCustomModel(entry) {
-  const models = getCustomModels()
-  const id = String(entry.id || '').trim()
+  const id = normalizeModelId(entry.id, entry.baseURL)
   if (!id) throw new Error('Укажите id модели (например openai/gpt-4o)')
+  const models = getCustomModels()
   const idx = models.findIndex((m) => m.id === id)
   const clean = {
     id,
@@ -273,5 +274,31 @@ export function getModelList(includeUnavailable = false) {
 
 export function getProviderOfModel(id) {
   const s = String(id)
-  return s.includes('/') ? s.split('/')[0] : 'opencode'
+  if (s.includes('/')) return s.split('/')[0]
+  const free = getFreeModels().some((m) => m.id === s)
+  const fallback = getFallbackModels().some((m) => m.id === s)
+  return free || fallback ? 'opencode' : 'opencode'
+}
+
+export function inferProvider(baseURL) {
+  const u = String(baseURL || '').toLowerCase()
+  if (!u) return 'custom'
+  if (u.includes('11434') || u.includes('ollama')) return 'ollama'
+  if (u.includes('openai.com') || u.includes('api.openai')) return 'openai'
+  if (u.includes('anthropic')) return 'anthropic'
+  if (u.includes('groq')) return 'groq'
+  if (u.includes('mistral')) return 'mistral'
+  if (u.includes('deepseek')) return 'deepseek'
+  if (u.includes('x.ai') || u.includes('grok')) return 'xai'
+  if (u.includes('gemini') || u.includes('googleapis')) return 'google'
+  if (u.includes('1234') || u.includes('lmstudio')) return 'lmstudio'
+  return 'custom'
+}
+
+export function normalizeModelId(id, baseURL) {
+  const s = String(id || '').trim()
+  if (s.includes('/')) return s
+  if (!s) return ''
+  const providerID = inferProvider(baseURL) || 'custom'
+  return `${providerID}/${s}`
 }

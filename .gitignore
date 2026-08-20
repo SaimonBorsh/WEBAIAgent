@@ -1,0 +1,11 @@
+node_modules/
+dist/
+logs/
+*.log
+.DS_Store
+server/projects.json
+server/tokens.json
+server/settings.json
+backups/
+publish/
+publish/.cache/

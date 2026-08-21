@@ -590,6 +590,33 @@ const server = app.listen(MANAGER_PORT, BIND_HOST, async () => {
   }
   manager.startIdleChecker((id) => registry.get(id))
 })
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`[webaia] порт ${MANAGER_PORT} занят. Попытка найти и завершить старый процесс...`)
+    const { execFileSync } = require('node:child_process')
+    try {
+      const out = execFileSync('netstat', ['-ano'], { encoding: 'utf8', windowsHide: true })
+      const line = out.split('\n').find((l) => l.includes(`:${MANAGER_PORT}`) && l.includes('LISTENING'))
+      if (line) {
+        const pid = line.trim().split(/\s+/).pop()
+        console.log(`[webaia] найден процесс PID=${pid} на порту ${MANAGER_PORT}, завершаю...`)
+        execFileSync('taskkill', ['/PID', pid, '/T', '/F'], { windowsHide: true })
+        setTimeout(() => {
+          app.listen(MANAGER_PORT, BIND_HOST)
+        }, 1000)
+      } else {
+        console.error(`[webaia] не удалось найти процесс на порту ${MANAGER_PORT}. Остановите старый вручную.`)
+        process.exit(1)
+      }
+    } catch (e) {
+      console.error(`[webaia] не удалось завершить старый процесс: ${e.message}`)
+      process.exit(1)
+    }
+  } else {
+    console.error(`[webaia] ошибка сервера: ${err.message}`)
+    process.exit(1)
+  }
+})
 
 const openBrowser = () => {
   const url = `http://127.0.0.1:${MANAGER_PORT}`

@@ -84,10 +84,7 @@ export function extractVersionZip(zipPath, name) {
     fs.rmSync(dest, { recursive: true, force: true })
     throw new Error('Не удалось распаковать архив версии')
   }
-  const nested = findNestedServerBundle(dest)
-  if (nested && !fs.existsSync(path.join(dest, 'server.bundle.cjs'))) {
-    fs.cpSync(nested, path.join(dest, 'server.bundle.cjs'))
-  }
+  normalizeNestedExtract(dest, name)
   if (!fs.existsSync(path.join(dest, 'server.bundle.cjs'))) {
     fs.rmSync(dest, { recursive: true, force: true })
     throw new Error('В архиве нет server.bundle.cjs — это не архив версии WEBAIA')
@@ -96,16 +93,22 @@ export function extractVersionZip(zipPath, name) {
   return { ok: true, name }
 }
 
-function findNestedServerBundle(dir) {
-  try {
-    for (const entry of fs.readdirSync(dir, { recursive: true })) {
-      const p = path.join(dir, entry)
-      if (entry.endsWith('server.bundle.cjs') && fs.statSync(p).isFile()) return p
+function normalizeNestedExtract(dest, name) {
+  const entries = (() => { try { return fs.readdirSync(dest) } catch { return [] } })()
+  if (entries.length === 1) {
+    const onlyDir = path.join(dest, entries[0])
+    if (fs.statSync(onlyDir).isDirectory()) {
+      const inner = (() => { try { return fs.readdirSync(onlyDir) } catch { return [] } })()
+      if (inner.some((e) => e === 'server.bundle.cjs' || e === 'web' || e === 'version.json')) {
+        for (const e of inner) {
+          const src = path.join(onlyDir, e)
+          const dst = path.join(dest, e)
+          fs.cpSync(src, dst, { recursive: true })
+        }
+        fs.rmSync(onlyDir, { recursive: true, force: true })
+      }
     }
-  } catch {
-    /* ignore */
   }
-  return null
 }
 
 export function setCurrent(name) {

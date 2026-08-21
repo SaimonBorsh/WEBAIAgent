@@ -232,6 +232,7 @@ app.post('/api/updates/install', asyncHandler(async (req, res) => {
       return res.status(400).json({ error: 'Нет доступных обновлений' })
     }
     const result = await downloadUpdateZip(info.latest)
+    switchVersion(result.name)
     res.json({ ok: true, ...result, restarting: true })
     setTimeout(() => {
       manager.stopAll()
@@ -268,6 +269,7 @@ app.post(
     fs.writeFileSync(tmp, req.body)
     try {
       const result = extractVersionZip(tmp, name)
+      switchVersion(name)
       res.json({ ok: true, ...result, restarting: true })
       setTimeout(() => {
         manager.stopAll()

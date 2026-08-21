@@ -9,7 +9,14 @@ export const SERVER_DIR = path.resolve(__dirname, '..')
 export const ROOT_DIR = process.env.WEBAIA_ROOT ? path.resolve(process.env.WEBAIA_ROOT) : path.resolve(SERVER_DIR, '..')
 export const HOME_DIR = process.env.WEBAIA_HOME ? path.resolve(process.env.WEBAIA_HOME) : null
 export const BASE_DIR = HOME_DIR || (process.env.WEBAIA_ROOT ? path.resolve(ROOT_DIR, '..') : ROOT_DIR)
-export const DATA_DIR = process.env.WEBAIA_DATA ? path.resolve(process.env.WEBAIA_DATA) : SERVER_DIR
+const detectDataDir = () => {
+  if (process.env.WEBAIA_DATA) return path.resolve(process.env.WEBAIA_DATA)
+  const rootDir = path.resolve(SERVER_DIR, '..')
+  const dataInRoot = path.join(rootDir, 'data')
+  if (fs.existsSync(dataInRoot) && fs.existsSync(path.join(rootDir, 'versions'))) return dataInRoot
+  return SERVER_DIR
+}
+export const DATA_DIR = detectDataDir()
 
 export const BIND_HOST = process.env.WEBAIA_HOST || '0.0.0.0'
 export const INTERNAL_HOST = '127.0.0.1'
@@ -47,11 +54,13 @@ export const GH_REPO = process.env.WEBAIA_GH_REPO || 'SaimonBorsh/WEBAIAgent'
 
 function loadGhToken() {
   if (process.env.WEBAIA_GH_TOKEN) return process.env.WEBAIA_GH_TOKEN
-  try {
-    return fs.readFileSync(path.join(SERVER_DIR, 'gh_token.txt'), 'utf8').trim()
-  } catch {
-    return ''
+  for (const dir of [DATA_DIR, SERVER_DIR]) {
+    try {
+      const t = fs.readFileSync(path.join(dir, 'gh_token.txt'), 'utf8').trim()
+      if (t) return t
+    } catch { /* continue */ }
   }
+  return ''
 }
 
 export const GH_TOKEN = loadGhToken()

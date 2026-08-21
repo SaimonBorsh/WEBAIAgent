@@ -139,23 +139,29 @@ export async function checkGithubUpdate() {
   } catch (e) {
     const is404 = /404/.test(e.message)
     if (is404) {
-      const releases = await ghApi(`/repos/${ghRepo()}/releases?per_page=1`)
-      if (Array.isArray(releases) && releases.length === 0) {
-        return {
-          available: false,
-          noReleases: true,
-          current: readCurrent(),
-          latest: null,
-          name: '',
-          published: null,
-          body: '',
-          downloadUrl: null,
-          fullZipUrl: null,
-          updateSize: 0
+      try {
+        const releases = await ghApi(`/repos/${ghRepo()}/releases?per_page=1`)
+        if (Array.isArray(releases) && releases.length > 0) {
+          data = releases[0]
+        } else if (Array.isArray(releases) && releases.length === 0) {
+          return {
+            available: false,
+            noReleases: true,
+            current: readCurrent(),
+            latest: null,
+            name: '',
+            published: null,
+            body: '',
+            downloadUrl: null,
+            fullZipUrl: null,
+            updateSize: 0
+          }
         }
+      } catch {
+        /* fallback тоже не удался — пробрасываем оригинальную ошибку */
       }
     }
-    throw e
+    if (!data) throw e
   }
   const tag = String(data.tag_name || '')
   if (!/^v\d+$/.test(tag)) {

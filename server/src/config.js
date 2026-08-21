@@ -13,6 +13,8 @@ export const SERVER_DIR = isPortable ? __dirname : PARENT
 
 export const ROOT_DIR = process.env.WEBAIA_ROOT || (isPortable ? PARENT : path.resolve(__dirname, '..', '..'))
 
+console.log(`[config] __dirname=${__dirname}  isPortable=${isPortable}  WEBAIA_ROOT=${process.env.WEBAIA_ROOT}  ROOT_DIR=${ROOT_DIR}  SERVER_DIR=${SERVER_DIR}`)
+
 export const HOME_DIR = process.env.WEBAIA_HOME ? path.resolve(process.env.WEBAIA_HOME) : null
 export const BASE_DIR = HOME_DIR || ROOT_DIR
 

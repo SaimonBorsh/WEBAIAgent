@@ -559,6 +559,7 @@ const distDir = (() => {
   if (fs.existsSync(fromRoot)) return fromRoot
   return path.join(SERVER_DIR, 'web', 'dist')
 })()
+console.log(`[webaia] ROOT_DIR=${ROOT_DIR}  SERVER_DIR=${SERVER_DIR}  distDir=${distDir}  exists=${fs.existsSync(distDir)}`)
 if (fs.existsSync(distDir)) {
   app.use((req, res, next) => {
     if (req.path === '/' || req.path === '/index.html') res.setHeader('Cache-Control', 'no-cache')
@@ -569,6 +570,8 @@ if (fs.existsSync(distDir)) {
     res.setHeader('Cache-Control', 'no-cache')
     res.sendFile(path.join(distDir, 'index.html'))
   })
+} else {
+  console.error(`[webaia] ВНИМАНИЕ: distDir не найден! FromRoot=${path.join(ROOT_DIR, 'web', 'dist')}  FromServer=${path.join(SERVER_DIR, 'web', 'dist')}`)
 }
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Неизвестный API-маршрут' }))

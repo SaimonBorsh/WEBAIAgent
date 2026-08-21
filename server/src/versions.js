@@ -113,8 +113,11 @@ export function setCurrent(name) {
 }
 
 function parseVersionNumber(name) {
-  const m = /^v(\d+)$/.exec(String(name || ''))
-  return m ? Number(m[1]) : NaN
+  const m = /^v(\d+(?:\.\d+)*)$/.exec(String(name || ''))
+  if (!m) return NaN
+  const parts = m[1].split('.').map(Number)
+  while (parts.length < 3) parts.push(0)
+  return parts[0] * 1_000_000 + parts[1] * 1_000 + parts[2]
 }
 
 async function ghApi(pathname) {

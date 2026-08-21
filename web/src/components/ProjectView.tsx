@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Project, SessionInfo, SessionConfig, FreeModel } from '../types'
 import { api, subscribeEvents } from '../api'
 import Chat from './Chat'
-import ProjectIcon from './ProjectIcon'
 import DropdownMenu from './DropdownMenu'
 import SessionSettingsModal from './SessionSettingsModal'
 import ProjectSettingsModal from './ProjectSettingsModal'
@@ -49,6 +48,8 @@ export default function ProjectView({ projectId, onBack, onChanged }: Props) {
   const [sessionModal, setSessionModal] = useState<SessionModalState | null>(null)
   const [showRename, setShowRename] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [starting, setStarting] = useState(false)
+  const autoStartRef = useRef(false)
   const activeKey = `webaia_active_${projectId}`
   const archivedSetRef = useRef<Record<string, boolean>>({})
   archivedSetRef.current = config?.archivedSessions || {}
@@ -285,6 +286,28 @@ export default function ProjectView({ projectId, onBack, onChanged }: Props) {
   }, [reload, loadSessions])
 
   useEffect(() => {
+    if (!project || project.running || project.archived || autoStartRef.current) return
+    autoStartRef.current = true
+    let cancelled = false
+    const doStart = async () => {
+      setStarting(true)
+      try {
+        await api.startProject(projectId)
+        if (!cancelled) {
+          await reload()
+          onChanged?.()
+        }
+      } catch {
+        if (!cancelled) {
+          setStarting(false)
+        }
+      }
+    }
+    void doStart()
+    return () => { cancelled = true }
+  }, [project?.running, project?.archived])
+
+  useEffect(() => {
     if (!project?.running) return
     return subscribeEvents(projectId, (event) => {
       const p = event.properties
@@ -338,98 +361,86 @@ export default function ProjectView({ projectId, onBack, onChanged }: Props) {
   const activeSessions = sessions.filter((s) => !archivedSet[s.id])
   const archivedSessionsList = sessions.filter((s) => archivedSet[s.id])
 
-  const renderSession = (s: SessionInfo, isArchived: boolean) => (
-    <div
-      key={s.id}
-      className={`session-item ${isArchived ? 'archived' : ''} ${s.id === selectedId ? 'active' : ''}`}
-      onClick={() => setSelectedId(s.id)}
-    >
-      <span className="session-title">{s.title || 'Без названия'}</span>
-      {busySessions.has(s.id) && (
-        <span className="session-busy">
-          <span className="busy-dot" />
-          работает…
-        </span>
-      )}
-      {!busySessions.has(s.id) && s.summary && s.summary.files > 0 && (
-        <span className="session-summary">
-          +{s.summary.additions} −{s.summary.deletions}
-        </span>
-      )}
-      {isArchived && <span className="session-archived-badge">в архиве</span>}
-      <button
-        className="session-del"
-        title="Настройки сессии"
-        aria-label="Настройки сессии"
-        onClick={(e) => {
-          e.stopPropagation()
-          setSessionModal({ mode: 'edit', id: s.id, title: s.title || '' })
-        }}
+  const renderSession = (s: SessionInfo, isArchived: boolean) => {
+    const cfg = configFor(s.id)
+    const modelShort = cfg.model ? cfg.model.split('/').pop() || cfg.model : ''
+    return (
+      <div
+        key={s.id}
+        className={`session-item ${isArchived ? 'archived' : ''} ${s.id === selectedId ? 'active' : ''}`}
+        onClick={() => setSelectedId(s.id)}
       >
-        ✎
-      </button>
-      <button
-        className="session-del"
-        title={isArchived ? 'Вернуть из архива' : 'Отправить в архив'}
-        aria-label={isArchived ? 'Вернуть из архива' : 'Отправить в архив'}
-        onClick={(e) => {
-          e.stopPropagation()
-          void toggleSessionArchived(s.id, !isArchived)
-        }}
-      >
-        {isArchived ? '↩' : '▤'}
-      </button>
-      {isArchived && (
-        <button
-          className="session-del danger"
-          title="Удалить сессию"
-          aria-label="Удалить сессию"
-          onClick={(e) => {
-            e.stopPropagation()
-            void deleteSession(s.id)
-          }}
-        >
-          ✕
-        </button>
-      )}
-    </div>
-  )
+        <span className="session-title">{s.title || 'Без названия'}</span>
+        {modelShort && <span className="session-model">{modelShort}</span>}
+        <div className="session-meta">
+          {busySessions.has(s.id) && (
+            <span className="session-busy">
+              <span className="busy-dot" />
+            </span>
+          )}
+          {!busySessions.has(s.id) && s.summary && s.summary.files > 0 && (
+            <span className="session-summary">
+              +{s.summary.additions} −{s.summary.deletions}
+            </span>
+          )}
+          {isArchived && <span className="session-archived-badge">архив</span>}
+          <button
+            className="session-del"
+            title="Настройки сессии"
+            aria-label="Настройки сессии"
+            onClick={(e) => {
+              e.stopPropagation()
+              setSessionModal({ mode: 'edit', id: s.id, title: s.title || '' })
+            }}
+          >
+            ✎
+          </button>
+          <button
+            className="session-del"
+            title={isArchived ? 'Вернуть из архива' : 'Отправить в архив'}
+            aria-label={isArchived ? 'Вернуть из архива' : 'Отправить в архив'}
+            onClick={(e) => {
+              e.stopPropagation()
+              void toggleSessionArchived(s.id, !isArchived)
+            }}
+          >
+            {isArchived ? '↩' : '▤'}
+          </button>
+          {isArchived && (
+            <button
+              className="session-del danger"
+              title="Удалить сессию"
+              aria-label="Удалить сессию"
+              onClick={(e) => {
+                e.stopPropagation()
+                void deleteSession(s.id)
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="project">
-      <header className="project-head">
-        <button className="btn btn-ghost" onClick={onBack}>
-          ← Проекты
-        </button>
-        <div className="project-title">
-          <ProjectIcon project={project} size="md" />
-          <div>
-            <strong>{project.name}</strong>
-            <span className="muted" title={project.path}>
-              {project.path}
-            </span>
-          </div>
-        </div>
-        <div className="project-head-actions">
-          {archived ? (
-            <span className="badge badge-archived">в архиве</span>
-          ) : project.crashed ? (
-            <span className="badge badge-danger">упал</span>
-          ) : project.running ? (
-            <span className="badge badge-on">запущен</span>
-          ) : (
-            <span className="badge badge-off">остановлен</span>
-          )}
-          <button className="btn" disabled={busy} onClick={() => void toggleStart()}>
-            {project.running ? 'Остановить' : 'Запустить'}
-          </button>
-          {project.running && (
-            <button className="btn" disabled={busy} onClick={() => void restartProject()} title="Перезапустить сервер">
-              ↻
-            </button>
-          )}
-          <button className="btn" onClick={() => setShowSettings(true)} title="Настройки проекта">
-            ⚙ Настройки
+      <div className="project-actions-bar">
+        {archived ? (
+          <span className="badge badge-archived">архив</span>
+        ) : starting ? (
+          <span className="badge badge-starting">запуск…</span>
+        ) : project.crashed ? (
+          <span className="badge badge-danger">упал</span>
+        ) : project.running ? (
+          <span className="badge badge-on">онлайн</span>
+        ) : (
+          <span className="badge badge-off">офлайн</span>
+        )}
+        <div className="project-actions-right">
+          <button className="btn btn-ghost btn-small" onClick={() => setShowSettings(true)} title="Настройки проекта">
+            ⚙
           </button>
           <DropdownMenu
             title="Ещё"
@@ -440,15 +451,12 @@ export default function ProjectView({ projectId, onBack, onChanged }: Props) {
                 onClick: () => void doInit()
               },
               { label: 'Переименовать', onClick: () => setShowRename(true) },
-              {
-                label: archived ? 'Вернуть из архива' : 'В архив',
-                onClick: () => void toggleProjectArchive()
-              },
+              { label: archived ? 'Вернуть из архива' : 'В архив', onClick: () => void toggleProjectArchive() },
               { label: 'Удалить проект', danger: true, onClick: () => void deleteProject() }
             ]}
           />
         </div>
-      </header>
+      </div>
 
       {archived && (
         <div className="archive-note">
@@ -467,7 +475,17 @@ export default function ProjectView({ projectId, onBack, onChanged }: Props) {
             </button>
           </div>
           <div className="sessions-list">
-            {sessions.length === 0 && <div className="muted pad">Сессий пока нет</div>}
+            {sessions.length === 0 && !archived && project.running && (
+              <div className="muted pad" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+                <span>Сессий пока нет</span>
+                <button className="btn btn-primary btn-small" onClick={() => setSessionModal({ mode: 'new' })}>
+                  + Новая сессия
+                </button>
+              </div>
+            )}
+            {sessions.length === 0 && (archived || !project.running) && (
+              <div className="muted pad">Сессий пока нет</div>
+            )}
             {activeSessions.length > 0 && (
               <>
                 <div className="sessions-group">Активные</div>
@@ -489,14 +507,31 @@ export default function ProjectView({ projectId, onBack, onChanged }: Props) {
               <Chat projectId={projectId} sessionId={selectedId} config={configFor(selectedId)} />
             ) : (
               <div className="stopped">
-                <p>{archived ? 'Выберите сессию, чтобы посмотреть переписку.' : 'Выберите сессию или создайте новую.'}</p>
-                {!archived && (
-                  <button className="btn btn-primary" onClick={() => setSessionModal({ mode: 'new' })}>
-                    + Новая сессия
-                  </button>
+                {sessions.length === 0 && !archived ? (
+                  <>
+                    <p>Создайте первую сессию, чтобы начать работу с агентом.</p>
+                    <button className="btn btn-primary" onClick={() => setSessionModal({ mode: 'new' })}>
+                      + Новая сессия
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p>{archived ? 'Выберите сессию, чтобы посмотреть переписку.' : 'Выберите сессию или создайте новую.'}</p>
+                    {!archived && (
+                      <button className="btn btn-primary" onClick={() => setSessionModal({ mode: 'new' })}>
+                        + Новая сессия
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             )
+          ) : starting ? (
+            <div className="stopped">
+              <div className="starting-spinner" />
+              <p>Запуск сервера…</p>
+              <p className="muted small">Обычно занимает 3–5 секунд</p>
+            </div>
           ) : (
             <div className="stopped">
               <p>Сервер проекта остановлен.</p>

@@ -13,6 +13,7 @@ interface Props {
 export default function Dashboard({ projects, loading, error, onOpenProject, onCreate, onChanged }: Props) {
   const active = projects.filter((p) => !p.archived)
   const archived = projects.filter((p) => p.archived)
+  const running = projects.filter((p) => p.running && !p.archived)
 
   return (
     <div className="dashboard">
@@ -21,7 +22,7 @@ export default function Dashboard({ projects, loading, error, onOpenProject, onC
           <h1>Проекты</h1>
           <p className="muted">
             {projects.length
-              ? `Активных: ${active.length}, в архиве: ${archived.length}, запущено: ${projects.filter((p) => p.running).length}`
+              ? `${active.length} активных · ${running.length} запущено${archived.length ? ` · ${archived.length} в архиве` : ''}`
               : 'Создайте первый проект, чтобы начать работу'}
           </p>
         </div>
@@ -56,18 +57,16 @@ export default function Dashboard({ projects, loading, error, onOpenProject, onC
             )}
           </div>
 
-          <div className="dashboard-section">
-            <h2 className="dashboard-section-title">Архив</h2>
-            {archived.length === 0 ? (
-              <p className="muted">Пусто. Архивные проекты попадают сюда; из архива можно удалять сессии и сам проект.</p>
-            ) : (
+          {archived.length > 0 && (
+            <div className="dashboard-section">
+              <h2 className="dashboard-section-title">Архив</h2>
               <div className="cards">
                 {archived.map((p) => (
                   <ProjectCard key={p.id} project={p} onChanged={onChanged} onOpen={() => onOpenProject(p.id)} />
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </>
       )}
     </div>

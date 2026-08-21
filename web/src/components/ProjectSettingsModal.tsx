@@ -15,11 +15,11 @@ interface Props {
 export default function ProjectSettingsModal({ project, models, onDone, onClose }: Props) {
   useEscape(onClose)
   const [agent, setAgent] = useState(project.defaultAgent || 'build')
-  const [autoStart, setAutoStart] = useState(Boolean(project.autoStart))
   const [idleTimeout, setIdleTimeout] = useState((project.idleTimeout ?? 30).toString())
   const [icon, setIcon] = useState(project.icon || '')
   const [iconTone, setIconTone] = useState<IconTone>(project.iconTone || 'auto')
   const [busy, setBusy] = useState(false)
+  const [toggling, setToggling] = useState(false)
   const [restarting, setRestarting] = useState(false)
   const [error, setError] = useState('')
 
@@ -31,7 +31,6 @@ export default function ProjectSettingsModal({ project, models, onDone, onClose 
       const it = parseInt(idleTimeout, 10)
       await api.updateProject(project.id, {
         defaultAgent: agent,
-        autoStart,
         idleTimeout: Number.isFinite(it) ? it : 30,
         icon: icon || undefined,
         iconTone
@@ -43,6 +42,25 @@ export default function ProjectSettingsModal({ project, models, onDone, onClose 
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setBusy(false)
+    }
+  }
+
+  const handleToggleStart = async () => {
+    setToggling(true)
+    setError('')
+    try {
+      if (project.running) {
+        await api.stopProject(project.id)
+        toast('Сервер остановлен', 'success')
+      } else {
+        await api.startProject(project.id)
+        toast('Сервер запущен', 'success')
+      }
+      onDone()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setToggling(false)
     }
   }
 
@@ -68,17 +86,44 @@ export default function ProjectSettingsModal({ project, models, onDone, onClose 
           {project.path}
         </p>
 
+        <div className="settings-server-section">
+          <div className="settings-server-row">
+            <span className="settings-server-label">
+              Сервер:{' '}
+              {project.running ? (
+                <span className="settings-server-status on">запущен</span>
+              ) : project.crashed ? (
+                <span className="settings-server-status danger">упал</span>
+              ) : (
+                <span className="settings-server-status off">остановлен</span>
+              )}
+            </span>
+            <div className="settings-server-actions">
+              <button
+                type="button"
+                className={`btn ${project.running ? 'btn-danger-outline' : 'btn-primary'}`}
+                disabled={toggling}
+                onClick={() => void handleToggleStart()}
+              >
+                {toggling ? '…' : project.running ? 'Остановить' : 'Запустить'}
+              </button>
+              {project.running && (
+                <button type="button" className="btn" disabled={restarting} onClick={() => void handleRestart()}>
+                  {restarting ? '…' : 'Перезапустить'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="settings-divider" />
+
         <label className="field">
           <span>Агент по умолчанию</span>
           <select value={agent} onChange={(e) => setAgent(e.target.value)}>
             <option value="build">build — выполнение задач</option>
             <option value="plan">plan — планирование без изменений</option>
           </select>
-        </label>
-
-        <label className="check">
-          <input type="checkbox" checked={autoStart} onChange={(e) => setAutoStart(e.target.checked)} />
-          <span>Автоматически запускать сервер проекта при старте менеджера</span>
         </label>
 
         <label className="field">
@@ -101,13 +146,8 @@ export default function ProjectSettingsModal({ project, models, onDone, onClose 
 
         <div className="modal-actions">
           <button type="button" className="btn" onClick={onClose}>
-            Отмена
+            Закрыть
           </button>
-          {project.running && (
-            <button type="button" className="btn" disabled={restarting} onClick={() => void handleRestart()}>
-              {restarting ? 'Перезапуск…' : 'Перезапустить'}
-            </button>
-          )}
           <button type="submit" className="btn btn-primary" disabled={busy}>
             {busy ? 'Сохранение…' : 'Сохранить'}
           </button>

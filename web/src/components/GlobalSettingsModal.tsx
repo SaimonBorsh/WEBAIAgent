@@ -54,6 +54,7 @@ export default function GlobalSettingsModal({ onClose }: Props) {
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
+  const [restarting, setRestarting] = useState(false)
 
   const [models, setModels] = useState<FreeModel[]>([])
   const [modelStatus, setModelStatus] = useState<Record<string, ModelStatusEntry>>({})
@@ -182,6 +183,20 @@ export default function GlobalSettingsModal({ onClose }: Props) {
     } finally {
       setBusy(false)
     }
+  }
+
+  const restartManager = async () => {
+    if (!confirm('Перезапустить менеджер? Проекты на секунды прервутся и поднимутся заново.')) return
+    setRestarting(true)
+    setErr('')
+    setMsg('')
+    try {
+      await api.restart()
+      setMsg('Менеджер перезапускается…')
+    } catch {
+      /* процесс умирает — сетевую ошибку ожидаем */
+    }
+    setTimeout(() => setRestarting(false), 3000)
   }
 
   const changePassword = async (e: React.FormEvent) => {
@@ -422,6 +437,9 @@ export default function GlobalSettingsModal({ onClose }: Props) {
               <div className="modal-actions">
                 <button type="submit" className="btn btn-primary" disabled={busy}>
                   {busy ? 'Сохранение…' : 'Сохранить'}
+                </button>
+                <button type="button" className="btn btn-danger-outline" disabled={restarting} onClick={restartManager}>
+                  {restarting ? 'Перезапуск…' : 'Перезапустить менеджер'}
                 </button>
               </div>
             </form>

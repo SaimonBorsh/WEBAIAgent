@@ -13,7 +13,6 @@ export default function NewProjectModal({ onCreated, onClose }: Props) {
   useEscape(onClose)
   const [name, setName] = useState('')
   const [path, setPath] = useState('')
-  const [autoStart, setAutoStart] = useState(false)
   const [icon, setIcon] = useState('')
   const [iconTone, setIconTone] = useState<IconTone>('auto')
   const [error, setError] = useState('')
@@ -32,7 +31,6 @@ export default function NewProjectModal({ onCreated, onClose }: Props) {
       await api.createProject({
         name: name.trim(),
         path: path.trim(),
-        autoStart,
         icon: icon || undefined,
         iconTone
       })
@@ -73,11 +71,6 @@ export default function NewProjectModal({ onCreated, onClose }: Props) {
             </button>
           </div>
           <span className="field-hint">Оставьте пустым — будет создана папка в Документах с названием проекта (если такой папки ещё нет).</span>
-        </label>
-
-        <label className="check">
-          <input type="checkbox" checked={autoStart} onChange={(e) => setAutoStart(e.target.checked)} />
-          <span>Автоматически запускать сервер проекта при старте менеджера</span>
         </label>
 
         <div className="settings-divider" />

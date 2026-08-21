@@ -9,12 +9,13 @@ interface Props {
   onCreate: () => void
   onSettings: () => void
   onVersions: () => void
+  onLogout: () => void
 }
 
 const OPEN_DELAY_MS = 120
 const CLOSE_DELAY_MS = 180
 
-export default function Sidebar({ projects, currentId, onOpen, onCreate, onSettings, onVersions }: Props) {
+export default function Sidebar({ projects, currentId, onOpen, onCreate, onSettings, onVersions, onLogout }: Props) {
   const [expanded, setExpanded] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -81,6 +82,11 @@ export default function Sidebar({ projects, currentId, onOpen, onCreate, onSetti
         <button className="sidebar-item" onClick={onVersions} title="Версии" aria-label="Версии">
           <ProjectIcon project={{ name: 'Версии', icon: '🗄', path: '', iconTone: 'user' }} size="sm" />
           <span className="sidebar-name">Версии</span>
+        </button>
+        <div className="sidebar-divider" />
+        <button className="sidebar-item sidebar-logout" onClick={onLogout} title="Выйти" aria-label="Выйти">
+          <ProjectIcon project={{ name: 'Выйти', icon: '↪', path: '', iconTone: 'system' }} size="sm" />
+          <span className="sidebar-name">Выйти</span>
         </button>
       </div>
     </nav>

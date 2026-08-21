@@ -92,6 +92,11 @@ export default function App() {
     setPendingProjectSettings(true)
   }
 
+  // Очищаем сессии сразу при смене проекта, чтобы чужие не висели
+  useEffect(() => {
+    setSessionBridge({ sessions: [], selectedId: null, busySessions: new Set(), sessionConfig: {} })
+  }, [projectId])
+
   const handleSessionSelect = useCallback((id: string) => {
     setSessionBridge((b) => ({ ...b, selectedId: id }))
   }, [])

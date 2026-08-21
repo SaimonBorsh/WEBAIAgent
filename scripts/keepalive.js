@@ -5,9 +5,11 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
-const SERVER = path.join(ROOT, 'server')
-const LOGS = path.join(SERVER, 'logs')
-const WATCH_DIRS = [path.join(SERVER, 'src')]
+
+const PORTABLE = fs.existsSync(path.join(ROOT, 'versions')) && fs.existsSync(path.join(ROOT, 'current.txt'))
+const DATA_DIR = PORTABLE ? path.join(ROOT, 'data') : path.join(ROOT, 'server')
+const LOGS = path.join(DATA_DIR, 'logs')
+
 const STABLE_MS = 20000
 const BACKOFF_BASE = 1000
 const BACKOFF_MAX = 30000
@@ -52,6 +54,35 @@ function openLog(name) {
   })
 }
 
+function readCurrent() {
+  try {
+    return fs.readFileSync(path.join(ROOT, 'current.txt'), 'utf8').trim()
+  } catch {
+    return null
+  }
+}
+
+function resolveServerArgs() {
+  if (!PORTABLE) {
+    return { args: ['src/index.js'], cwd: path.join(ROOT, 'server'), env: { ...process.env } }
+  }
+  const ver = readCurrent()
+  if (!ver) {
+    throw new Error('current.txt пуст или отсутствует')
+  }
+  const bundle = path.join(ROOT, 'versions', ver, 'server.bundle.cjs')
+  if (!fs.existsSync(bundle)) {
+    throw new Error(`Сервер версии ${ver} не найден: ${bundle}`)
+  }
+  const env = {
+    ...process.env,
+    WEBAIA_ROOT: ROOT,
+    WEBAIA_DATA: DATA_DIR,
+    XDG_DATA_HOME: path.join(DATA_DIR, 'opencode-data')
+  }
+  return { args: [bundle], cwd: ROOT, env }
+}
+
 async function startManager() {
   if (stopped || child) return
   let out, err
@@ -68,12 +99,23 @@ async function startManager() {
     err.close()
     return
   }
-  log('запуск менеджера (node src/index.js)')
-  child = spawn(process.execPath, ['src/index.js'], {
-    cwd: SERVER,
+  let serverArgs
+  try {
+    serverArgs = resolveServerArgs()
+  } catch (e) {
+    log('ошибка:', e.message)
+    out.close(); err.close()
+    backoff = Math.min(backoff * 2, BACKOFF_MAX)
+    setTimeout(() => void startManager(), backoff)
+    return
+  }
+  const desc = PORTABLE ? `versions/${readCurrent()}/server.bundle.cjs` : 'node src/index.js'
+  log(`запуск менеджера (${desc})`)
+  child = spawn(process.execPath, serverArgs.args, {
+    cwd: serverArgs.cwd,
     stdio: ['ignore', out, err],
     windowsHide: true,
-    env: { ...process.env }
+    env: serverArgs.env
   })
   startedAt = Date.now()
   child.on('error', (e) => {
@@ -95,20 +137,19 @@ function requestRestart() {
   const now = Date.now()
   if (now - lastWatchRestart < WATCH_MIN_GAP_MS) return
   lastWatchRestart = now
-  log('изменения в server/src — перезапуск менеджера')
+  log('изменения — перезапуск менеджера')
   killTree(child.pid)
 }
 
 function setupWatch() {
   if (process.env.WEBAIA_WATCH !== '1') return
-  for (const dir of WATCH_DIRS) {
-    if (!fs.existsSync(dir)) continue
-    fs.watch(dir, { recursive: true }, () => {
-      clearTimeout(watchTimer)
-      watchTimer = setTimeout(requestRestart, WATCH_DEBOUNCE_MS)
-    })
-  }
-  log('watch server/src включён (WEBAIA_WATCH=1)')
+  const watchDir = PORTABLE ? path.join(ROOT, 'versions') : path.join(ROOT, 'server', 'src')
+  if (!fs.existsSync(watchDir)) return
+  fs.watch(watchDir, { recursive: true }, () => {
+    clearTimeout(watchTimer)
+    watchTimer = setTimeout(requestRestart, WATCH_DEBOUNCE_MS)
+  })
+  log(`watch включён (${PORTABLE ? 'versions' : 'server/src'})`)
 }
 
 function shutdown() {

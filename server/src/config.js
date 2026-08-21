@@ -5,21 +5,26 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-export const SERVER_DIR = path.resolve(__dirname, '..')
-export const ROOT_DIR = process.env.WEBAIA_ROOT ? path.resolve(process.env.WEBAIA_ROOT) : path.resolve(SERVER_DIR, '..')
+const isPortable = Boolean(process.env.WEBAIA_ROOT) || /versions[/\\]v\d+[/\\]/.test(__dirname)
+
+const PARENT = path.resolve(__dirname, '..')
+
+export const SERVER_DIR = isPortable ? __dirname : PARENT
+
+export const ROOT_DIR = process.env.WEBAIA_ROOT || (isPortable ? PARENT : path.resolve(__dirname, '..', '..'))
+
 export const HOME_DIR = process.env.WEBAIA_HOME ? path.resolve(process.env.WEBAIA_HOME) : null
-export const BASE_DIR = HOME_DIR || (process.env.WEBAIA_ROOT ? path.resolve(ROOT_DIR, '..') : ROOT_DIR)
-const detectDataDir = () => {
+export const BASE_DIR = HOME_DIR || ROOT_DIR
+
+export const DATA_DIR = (() => {
   if (process.env.WEBAIA_DATA) return path.resolve(process.env.WEBAIA_DATA)
-  const rootDir = path.resolve(SERVER_DIR, '..')
-  if (fs.existsSync(path.join(rootDir, 'versions'))) {
-    const dataDir = path.join(rootDir, 'data')
-    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true })
-    return dataDir
+  if (isPortable) {
+    const d = path.join(ROOT_DIR, 'data')
+    if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true })
+    return d
   }
   return SERVER_DIR
-}
-export const DATA_DIR = detectDataDir()
+})()
 
 export const BIND_HOST = process.env.WEBAIA_HOST || '0.0.0.0'
 export const INTERNAL_HOST = '127.0.0.1'
@@ -42,9 +47,9 @@ export const MAX_PROJECT_PORT = 4199
 export const REGISTRY_FILE = path.join(DATA_DIR, 'projects.json')
 export const LOGS_DIR = path.join(DATA_DIR, 'logs')
 
-export const VERSIONS_DIR = path.join(BASE_DIR, 'versions')
-export const CURRENT_FILE = path.join(BASE_DIR, 'current.txt')
-export const KEEPALIVE_PID_FILE = path.join(BASE_DIR, 'keepalive.pid')
+export const VERSIONS_DIR = path.join(ROOT_DIR, 'versions')
+export const CURRENT_FILE = path.join(ROOT_DIR, 'current.txt')
+export const KEEPALIVE_PID_FILE = path.join(ROOT_DIR, 'keepalive.pid')
 
 export const MODELS_URL = 'https://models.dev/api.json'
 export const MODELS_CACHE_TTL_MS = 6 * 60 * 60 * 1000
@@ -57,7 +62,7 @@ export const GH_REPO = process.env.WEBAIA_GH_REPO || 'SaimonBorsh/WEBAIAgent'
 
 function loadGhToken() {
   if (process.env.WEBAIA_GH_TOKEN) return process.env.WEBAIA_GH_TOKEN
-  for (const dir of [BASE_DIR, DATA_DIR, SERVER_DIR]) {
+  for (const dir of [ROOT_DIR, DATA_DIR, SERVER_DIR]) {
     try {
       const t = fs.readFileSync(path.join(dir, 'gh_token.txt'), 'utf8').trim()
       if (t) return t

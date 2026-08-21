@@ -1,8 +1,10 @@
 import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const ROOT = path.resolve(import.meta.dirname, '..')
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const ROOT = path.resolve(__dirname, '..')
 const SERVER = path.join(ROOT, 'server')
 const LOGS = path.join(SERVER, 'logs')
 const WATCH_DIRS = [path.join(SERVER, 'src')]

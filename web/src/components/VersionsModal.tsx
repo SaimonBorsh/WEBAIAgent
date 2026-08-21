@@ -87,7 +87,7 @@ export default function VersionsModal({ onClose }: Props) {
     e.preventDefault()
     const name = newName.trim()
     if (!/^v\d+$/.test(name)) {
-      setErr('Укажите номер версии вида v36 (например v36).')
+              setErr('Укажите номер версии вида v36 или v39.6 (например v39.7).')
       return
     }
     const fileInput = document.getElementById('version-zip-input') as HTMLInputElement | null
@@ -203,7 +203,7 @@ export default function VersionsModal({ onClose }: Props) {
               <input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="например v36"
+                  placeholder="например v39.7"
                 disabled={uploading}
               />
             </label>

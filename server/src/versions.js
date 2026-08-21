@@ -17,7 +17,7 @@ export function listVersions() {
       const dir = path.join(VERSIONS_DIR, entry)
       const st = fs.statSync(dir)
       if (!st.isDirectory()) continue
-      if (!/^v\d+$/.test(entry)) continue
+      if (!/^v\d+(\.\d+)*$/.test(entry)) continue
       const serverBundle = path.join(dir, 'server.bundle.cjs')
       const webDist = path.join(dir, 'web', 'dist')
       let created = null
@@ -65,7 +65,7 @@ function dirSize(dir) {
 
 export function switchVersion(name) {
   const dir = path.join(VERSIONS_DIR, name)
-  if (!/^v\d+$/.test(name) || !fs.existsSync(path.join(dir, 'server.bundle.cjs'))) {
+  if (!/^v\d+(\.\d+)*$/.test(name) || !fs.existsSync(path.join(dir, 'server.bundle.cjs'))) {
     throw new Error(`Версия ${name} не найдена или неполная`)
   }
   fs.writeFileSync(CURRENT_FILE, name + '\n', 'utf8')
@@ -73,7 +73,7 @@ export function switchVersion(name) {
 }
 
 export function extractVersionZip(zipPath, name) {
-  if (!/^v\d+$/.test(name)) throw new Error('Имя версии должно быть вида v<число> (например v36)')
+  if (!/^v\d+(\.\d+)*$/.test(name)) throw new Error('Имя версии должно быть вида v<число> (например v36)')
   const dest = path.join(VERSIONS_DIR, name)
   fs.mkdirSync(VERSIONS_DIR, { recursive: true })
   fs.rmSync(dest, { recursive: true, force: true })
@@ -164,7 +164,7 @@ export async function checkGithubUpdate() {
     if (!data) throw e
   }
   const tag = String(data.tag_name || '')
-  if (!/^v\d+$/.test(tag)) {
+  if (!/^v\d+(\.\d+)*$/.test(tag)) {
     throw new Error(`Релиз «${tag}» имеет неверный номер (ожидается вида v36)`)
   }
   const updateAsset = (data.assets || []).find((a) => /-update\.zip$/.test(a.name))

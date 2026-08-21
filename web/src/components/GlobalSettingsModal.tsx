@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
-import type { FreeModel, CustomModel, ModelStatusEntry, CheckState } from '../types'
+import type { FreeModel, CustomModel, ModelStatusEntry, CheckState, SessionConfig } from '../types'
+import ModelSelect from './ModelSelect'
 import {
   getTheme,
   setTheme,
@@ -20,9 +21,24 @@ interface Props {
   onClose: () => void
 }
 
-type Tab = 'interface' | 'server' | 'models'
+type Tab = 'interface' | 'server' | 'model' | 'models'
 
 const EMPTY_CHECK: CheckState = { running: false, total: 0, done: 0, current: null, startedAt: 0, error: '' }
+
+function num(value: string): number | undefined {
+  const n = parseFloat(value.replace(',', '.'))
+  return Number.isFinite(n) ? n : undefined
+}
+
+function validateField(value: string, min: number, max: number, label: string): string | undefined {
+  if (!value.trim()) return undefined
+  const n = num(value)
+  if (n === undefined) return `${label}: введите число`
+  if (n < min || n > max) return `${label}: введите значение от ${min} до ${max}`
+  return undefined
+}
+
+type FieldErrors = Partial<Record<'temperature' | 'topP' | 'maxTokens', string>>
 
 export default function GlobalSettingsModal({ onClose }: Props) {
   useEscape(onClose)
@@ -46,6 +62,14 @@ export default function GlobalSettingsModal({ onClose }: Props) {
   const [showAddModel, setShowAddModel] = useState(false)
   const [newModel, setNewModel] = useState<CustomModel>({ id: '', name: '', apiKey: '', baseURL: '', context: undefined, output: undefined })
 
+  const [defaultModel, setDefaultModel] = useState('opencode/deepseek-v4-flash-free')
+  const [defaultAgent, setDefaultAgent] = useState('build')
+  const [temperature, setTemperature] = useState('')
+  const [topP, setTopP] = useState('')
+  const [maxTokens, setMaxTokens] = useState('')
+  const [system, setSystem] = useState('')
+  const [modelErrors, setModelErrors] = useState<FieldErrors>({})
+
   const loadModels = () => {
     api
       .models()
@@ -64,7 +88,16 @@ export default function GlobalSettingsModal({ onClose }: Props) {
   useEffect(() => {
     api
       .settings()
-      .then((s) => setOpenBrowser(s.openBrowserOnStart))
+      .then((s) => {
+        setOpenBrowser(s.openBrowserOnStart)
+        setDefaultModel(s.defaultModel || 'opencode/deepseek-v4-flash-free')
+        setDefaultAgent(s.defaultAgent || 'build')
+        const d = s.defaults || {}
+        setTemperature(typeof d.temperature === 'number' ? d.temperature.toString() : '')
+        setTopP(typeof d.topP === 'number' ? d.topP.toString() : '')
+        setMaxTokens(typeof d.maxTokens === 'number' ? d.maxTokens.toString() : '')
+        setSystem(d.system || '')
+      })
       .catch(() => {})
     loadModels()
   }, [])
@@ -180,6 +213,42 @@ export default function GlobalSettingsModal({ onClose }: Props) {
     }
   }
 
+  const saveModelDefaults = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErr('')
+    setMsg('')
+    const nextErrors: FieldErrors = {
+      temperature: validateField(temperature, 0, 2, 'Temperature'),
+      topP: validateField(topP, 0, 1, 'Top P'),
+      maxTokens: validateField(maxTokens, 1, 1000000, 'Max tokens')
+    }
+    setModelErrors(nextErrors)
+    if (Object.values(nextErrors).some(Boolean)) return
+
+    setBusy(true)
+    try {
+      const defaults: SessionConfig = {}
+      const t = num(temperature)
+      if (t !== undefined) defaults.temperature = Math.min(2, Math.max(0, t))
+      const p = num(topP)
+      if (p !== undefined) defaults.topP = Math.min(1, Math.max(0, p))
+      const m = num(maxTokens)
+      if (m !== undefined && m > 0) defaults.maxTokens = Math.round(m)
+      if (system.trim()) defaults.system = system.trim()
+
+      await api.updateSettings({
+        defaultModel: defaultModel.includes('/') ? defaultModel : `opencode/${defaultModel}`,
+        defaultAgent,
+        defaults
+      })
+      setMsg('Модель по умолчанию сохранена.')
+    } catch (err2) {
+      setErr(err2 instanceof Error ? err2.message : String(err2))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const addModel = async (e: React.FormEvent) => {
     e.preventDefault()
     setErr('')
@@ -205,7 +274,7 @@ export default function GlobalSettingsModal({ onClose }: Props) {
     }
   }
 
-  const num = (v: string): number | undefined => {
+  const numFmt = (v: string): number | undefined => {
     const n = parseFloat(v.replace(',', '.'))
     return Number.isFinite(n) && n > 0 ? Math.round(n) : undefined
   }
@@ -221,11 +290,14 @@ export default function GlobalSettingsModal({ onClose }: Props) {
           <button className={`settings-tab ${tab === 'interface' ? 'active' : ''}`} onClick={() => setTab('interface')} role="tab">
             Интерфейс
           </button>
+          <button className={`settings-tab ${tab === 'model' ? 'active' : ''}`} onClick={() => setTab('model')} role="tab">
+            Модель
+          </button>
           <button className={`settings-tab ${tab === 'server' ? 'active' : ''}`} onClick={() => setTab('server')} role="tab">
             Сервер
           </button>
           <button className={`settings-tab ${tab === 'models' ? 'active' : ''}`} onClick={() => setTab('models')} role="tab">
-            Модели
+            Список моделей
           </button>
         </div>
 
@@ -262,6 +334,81 @@ export default function GlobalSettingsModal({ onClose }: Props) {
               <input type="checkbox" checked={showReasoning} onChange={(e) => onShowReasoning(e.target.checked)} />
               <span>Показывать рассуждения модели (что она «думает»)</span>
             </label>
+          </div>
+        )}
+
+        {tab === 'model' && (
+          <div className="settings-tab-body">
+            <form onSubmit={saveModelDefaults}>
+              <label className="field">
+                <span>Модель по умолчанию</span>
+                <ModelSelect models={models} value={defaultModel} onChange={setDefaultModel} />
+                <span className="muted small">Используется для новых сессий. В существующих сессиях модель настраивается отдельно.</span>
+              </label>
+
+              <label className="field">
+                <span>Агент по умолчанию</span>
+                <select value={defaultAgent} onChange={(e) => setDefaultAgent(e.target.value)}>
+                  <option value="build">build — выполнение задач</option>
+                  <option value="plan">plan — планирование без изменений</option>
+                </select>
+              </label>
+
+              <div className="settings-divider" />
+              <h3 className="settings-subhead">Параметры модели (по умолчанию для новых сессий)</h3>
+
+              <div className="settings-row">
+                <label className="field">
+                  <span>Temperature (0–2)</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={temperature}
+                    onChange={(e) => setTemperature(e.target.value)}
+                    placeholder="по умолчанию"
+                  />
+                  {modelErrors.temperature && <span className="field-error">{modelErrors.temperature}</span>}
+                </label>
+                <label className="field">
+                  <span>Top P (0–1)</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={topP}
+                    onChange={(e) => setTopP(e.target.value)}
+                    placeholder="по умолчанию"
+                  />
+                  {modelErrors.topP && <span className="field-error">{modelErrors.topP}</span>}
+                </label>
+                <label className="field">
+                  <span>Max tokens</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={maxTokens}
+                    onChange={(e) => setMaxTokens(e.target.value)}
+                    placeholder="по умолчанию"
+                  />
+                  {modelErrors.maxTokens && <span className="field-error">{modelErrors.maxTokens}</span>}
+                </label>
+              </div>
+
+              <label className="field">
+                <span>Системный промпт (для новых сессий)</span>
+                <textarea
+                  value={system}
+                  onChange={(e) => setSystem(e.target.value)}
+                  placeholder="Глобальные инструкции для сессий…"
+                  rows={3}
+                />
+              </label>
+
+              <div className="modal-actions">
+                <button type="submit" className="btn btn-primary" disabled={busy}>
+                  {busy ? 'Сохранение…' : 'Сохранить'}
+                </button>
+              </div>
+            </form>
           </div>
         )}
 
@@ -381,15 +528,15 @@ export default function GlobalSettingsModal({ onClose }: Props) {
               {showAddModel && (
                 <form className="add-model-form" onSubmit={addModel}>
                   <div className="settings-row">
-<label className="field">
-                  <span>ID модели</span>
-                  <input
-                    value={newModel.id}
-                    onChange={(e) => setNewModel((m) => ({ ...m, id: e.target.value }))}
-                    placeholder="openai/gpt-4o или ollama/qwen3.5:9b-32k"
-                    required
-                  />
-                </label>
+                    <label className="field">
+                      <span>ID модели</span>
+                      <input
+                        value={newModel.id}
+                        onChange={(e) => setNewModel((m) => ({ ...m, id: e.target.value }))}
+                        placeholder="openai/gpt-4o или ollama/qwen3.5:9b-32k"
+                        required
+                      />
+                    </label>
                     <label className="field">
                       <span>Название (необязательно)</span>
                       <input
@@ -425,7 +572,7 @@ export default function GlobalSettingsModal({ onClose }: Props) {
                         type="text"
                         inputMode="numeric"
                         value={newModel.context || ''}
-                        onChange={(e) => setNewModel((m) => ({ ...m, context: num(e.target.value) }))}
+                        onChange={(e) => setNewModel((m) => ({ ...m, context: numFmt(e.target.value) }))}
                         placeholder="128000"
                       />
                     </label>
@@ -435,7 +582,7 @@ export default function GlobalSettingsModal({ onClose }: Props) {
                         type="text"
                         inputMode="numeric"
                         value={newModel.output || ''}
-                        onChange={(e) => setNewModel((m) => ({ ...m, output: num(e.target.value) }))}
+                        onChange={(e) => setNewModel((m) => ({ ...m, output: numFmt(e.target.value) }))}
                         placeholder="16384"
                       />
                     </label>

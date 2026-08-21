@@ -7,7 +7,10 @@ const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json')
 
 const DEFAULTS = {
   openBrowserOnStart: true,
-  passwordHash: null
+  passwordHash: null,
+  defaultModel: 'opencode/deepseek-v4-flash-free',
+  defaultAgent: 'build',
+  defaults: {}
 }
 
 let settings = load()
@@ -30,6 +33,12 @@ function save() {
   }
 }
 
+function normalizeModel(m) {
+  if (!m) return m
+  const s = String(m)
+  return s.includes('/') ? s : `opencode/${s}`
+}
+
 export function getSettings() {
   return { ...settings }
 }
@@ -40,6 +49,37 @@ export function updateSettings(patch) {
   }
   if (typeof patch.password === 'string' && patch.password.length > 0) {
     settings.passwordHash = crypto.createHash('sha256').update(patch.password).digest('hex')
+  }
+  if ('defaultModel' in patch) {
+    settings.defaultModel = normalizeModel(patch.defaultModel) || settings.defaultModel
+  }
+  if ('defaultAgent' in patch) {
+    settings.defaultAgent = patch.defaultAgent || settings.defaultAgent
+  }
+  if (patch.defaults && typeof patch.defaults === 'object') {
+    const src = patch.defaults
+    const d = { ...(settings.defaults || {}) }
+    if (typeof src.temperature === 'number' && Number.isFinite(src.temperature) && src.temperature >= 0 && src.temperature <= 2) {
+      d.temperature = src.temperature
+    } else if (src.temperature === null || src.temperature === undefined) {
+      delete d.temperature
+    }
+    if (typeof src.topP === 'number' && Number.isFinite(src.topP) && src.topP >= 0 && src.topP <= 1) {
+      d.topP = src.topP
+    } else if (src.topP === null || src.topP === undefined) {
+      delete d.topP
+    }
+    if (typeof src.maxTokens === 'number' && src.maxTokens > 0) {
+      d.maxTokens = Math.round(src.maxTokens)
+    } else if (src.maxTokens === null || src.maxTokens === undefined) {
+      delete d.maxTokens
+    }
+    if (typeof src.system === 'string') {
+      d.system = src.system.trim()
+    } else if (src.system === null || src.system === undefined) {
+      delete d.system
+    }
+    settings.defaults = d
   }
   save()
   return getSettings()

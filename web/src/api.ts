@@ -125,7 +125,7 @@ export const api = {
   removeCustomModel: (id: string) =>
     request<{ ok: boolean }>(`/models/custom/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   settings: () => request<ManagerSettings>('/settings'),
-  updateSettings: (data: { password?: string; openBrowserOnStart?: boolean }) =>
+  updateSettings: (data: { password?: string; openBrowserOnStart?: boolean; defaultModel?: string; defaultAgent?: string; defaults?: SessionConfig }) =>
     request<ManagerSettings & { ok: boolean }>('/settings', {
       method: 'PUT',
       body: JSON.stringify(data)

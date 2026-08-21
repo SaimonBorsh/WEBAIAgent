@@ -23,6 +23,11 @@ interface ProjectConfig {
   defaults: SessionConfig
   sessionConfig: Record<string, SessionConfig>
   archivedSessions: Record<string, boolean>
+  globalDefaults?: {
+    defaultModel: string
+    defaultAgent: string
+    defaults: SessionConfig
+  }
 }
 
 interface SessionModalState {
@@ -95,10 +100,11 @@ export default function ProjectView({ projectId, onBack, onChanged }: Props) {
   }
 
   const defaultBase = (): SessionConfig => {
-    const defaults = config?.defaults || {}
+    const g = config?.globalDefaults
+    const defaults = g?.defaults || config?.defaults || {}
     return {
-      model: config?.defaultModel || DEFAULT_MODEL,
-      agent: config?.defaultAgent || 'build',
+      model: g?.defaultModel || config?.defaultModel || DEFAULT_MODEL,
+      agent: g?.defaultAgent || config?.defaultAgent || 'build',
       temperature: defaults.temperature,
       topP: defaults.topP,
       maxTokens: defaults.maxTokens,

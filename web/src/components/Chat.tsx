@@ -419,30 +419,12 @@ setInput('')
       setAborting(false)
       if (busyRef.current) {
         setStatusText(
-          'Остановка не завершилась — вероятно, выполняется длинная команда, которую нельзя прервать. Она доработает сама, либо напишите «продолжи» в этом чате.'
+          'Остановка не завершилась — вероятно, выполняется длинная команда, которую нельзя прервать. Она доработает сама.'
         )
       } else {
         setStatusText('')
       }
     }, 5000)
-  }
-
-  const continueAgent = async () => {
-    if (sendingRef.current) return
-    if (questions.length > 0) return
-    sendingRef.current = true
-    setSending(true)
-    setStatusText('Продолжаю…')
-    setMessages((prev) => [...prev.filter((m) => !m.info.id.startsWith('tmp-')), optimisticUserMessage('Продолжи')])
-    try {
-      await sendParts([{ type: 'text', text: 'Продолжи' }])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-      void loadMessages()
-    } finally {
-      sendingRef.current = false
-      setSending(false)
-    }
   }
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -527,8 +509,6 @@ setInput('')
     : hasRunningTools
       ? 'acting'
       : 'thinking'
-  const idleMs = busy && lastActivityRef.current ? Date.now() - lastActivityRef.current : 0
-  const hung = idleMs > 40_000
   const textOfMsg = (m: MessageItem) =>
     m.parts
       .filter((p) => p.type === 'text')
@@ -591,17 +571,7 @@ setInput('')
         ))}
 
         <div aria-live="polite">
-          {busy &&
-            (hung ? (
-              <div className="status-line status-line-danger">
-                <span>
-                  Обновлений уже {Math.round(idleMs / 1000)} с. Похоже, агент завис.
-                </span>
-                <button className="btn btn-small btn-danger" type="button" onClick={() => void continueAgent()} disabled={aborting || sending}>
-                  Продолжить
-                </button>
-              </div>
-            ) : (
+          {busy && (
               <div className="status-line">
                 {phase === 'acting' && currentTool ? (
                   <>
@@ -619,7 +589,7 @@ setInput('')
                 )}{' '}
                 ({elapsed} с)
               </div>
-            ))}
+          )}
           {statusText && <div className="status-line">{statusText}</div>}
         </div>
         {error && <div className="error">{error}</div>}

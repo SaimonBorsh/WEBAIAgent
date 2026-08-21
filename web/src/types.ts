@@ -58,6 +58,9 @@ export interface ModelsResult {
 export interface ManagerSettings {
   openBrowserOnStart: boolean
   passwordConfigured: boolean
+  defaultModel: string
+  defaultAgent: string
+  defaults: SessionConfig
 }
 
 export interface VersionInfo {

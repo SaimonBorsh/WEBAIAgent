@@ -188,20 +188,33 @@ app.get('/api/settings', (req, res) => {
   const s = getSettings()
   res.json({
     openBrowserOnStart: s.openBrowserOnStart,
-    passwordConfigured: Boolean(s.passwordHash)
+    passwordConfigured: Boolean(s.passwordHash),
+    defaultModel: s.defaultModel || 'opencode/deepseek-v4-flash-free',
+    defaultAgent: s.defaultAgent || 'build',
+    defaults: s.defaults || {}
   })
 })
 
 app.put('/api/settings', express.json({ limit: '1mb' }), asyncHandler(async (req, res) => {
-  const { password, openBrowserOnStart } = req.body || {}
+  const { password, openBrowserOnStart, defaultModel, defaultAgent, defaults } = req.body || {}
   const patch = {}
   if (typeof openBrowserOnStart === 'boolean') patch.openBrowserOnStart = openBrowserOnStart
   if (typeof password === 'string') {
     if (password.length < 4) return res.status(400).json({ error: 'Пароль слишком короткий (минимум 4 символа).' })
     patch.password = password
   }
+  if (typeof defaultModel === 'string') patch.defaultModel = defaultModel
+  if (typeof defaultAgent === 'string') patch.defaultAgent = defaultAgent
+  if (defaults && typeof defaults === 'object') patch.defaults = defaults
   const updated = updateSettings(patch)
-  res.json({ ok: true, openBrowserOnStart: updated.openBrowserOnStart, passwordConfigured: Boolean(updated.passwordHash) })
+  res.json({
+    ok: true,
+    openBrowserOnStart: updated.openBrowserOnStart,
+    passwordConfigured: Boolean(updated.passwordHash),
+    defaultModel: updated.defaultModel || 'opencode/deepseek-v4-flash-free',
+    defaultAgent: updated.defaultAgent || 'build',
+    defaults: updated.defaults || {}
+  })
 }))
 
 app.post('/api/restart', (req, res) => {
@@ -463,12 +476,18 @@ async function fetchOpenCode(project, apiPath, { method = 'GET', body } = {}) {
 app.get('/api/projects/:id/config', asyncHandler(async (req, res) => {
   const project = registry.get(req.params.id)
   if (!project) return res.status(404).json({ error: 'Проект не найден' })
+  const globalSettings = getSettings()
   res.json({
     defaultModel: project.defaultModel,
     defaultAgent: project.defaultAgent,
     defaults: project.defaults || {},
     sessionConfig: registry.getSessionConfigs(project.id),
-    archivedSessions: registry.getArchivedSessions(project.id)
+    archivedSessions: registry.getArchivedSessions(project.id),
+    globalDefaults: {
+      defaultModel: globalSettings.defaultModel || 'opencode/deepseek-v4-flash-free',
+      defaultAgent: globalSettings.defaultAgent || 'build',
+      defaults: globalSettings.defaults || {}
+    }
   })
 }))
 

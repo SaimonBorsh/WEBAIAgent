@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import net from 'node:net'
 import { EventEmitter } from 'node:events'
 import { REGISTRY_FILE, BASE_PROJECT_PORT, MAX_PROJECT_PORT } from './config.js'
+import { getSettings } from './settings.js'
 
 export const registryEvents = new EventEmitter()
 
@@ -63,13 +64,14 @@ export async function create({ name, path: projectPath, defaultModel, defaultAge
   if (!name || !projectPath) throw new Error('Укажите название и путь проекта')
   const resolved = path.resolve(projectPath)
   if (getByPath(resolved)) throw new Error(`Проект с путём ${resolved} уже существует`)
+  const globalSettings = getSettings()
   const project = {
     id: crypto.randomUUID(),
     name: String(name),
     path: resolved,
     port: await allocatePort(),
-    defaultModel: normalizeModel(defaultModel) || 'opencode/deepseek-v4-flash-free',
-    defaultAgent: defaultAgent || 'build',
+    defaultModel: normalizeModel(defaultModel) || globalSettings.defaultModel || 'opencode/deepseek-v4-flash-free',
+    defaultAgent: defaultAgent || globalSettings.defaultAgent || 'build',
     autoStart: Boolean(autoStart),
     archived: false,
     icon: typeof icon === 'string' && icon ? icon : undefined,

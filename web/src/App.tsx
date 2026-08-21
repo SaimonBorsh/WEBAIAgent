@@ -83,19 +83,22 @@ export default function App() {
     void check()
   }, [])
 
+  const emptyBridge = { sessions: [], selectedId: null, busySessions: new Set<string>(), sessionConfig: {} }
+
   const handleOpenProject = (id: string) => {
-    setProjectId((cur) => (cur === id ? null : id))
+    setProjectId((cur) => {
+      const next = cur === id ? null : id
+      // Очищаем сессии в том же рендере, чтобы не висели чужие
+      if (next !== cur) setSessionBridge(emptyBridge)
+      return next
+    })
   }
 
   const handleOpenProjectSettings = (id: string) => {
+    setSessionBridge(emptyBridge)
     setProjectId(id)
     setPendingProjectSettings(true)
   }
-
-  // Очищаем сессии сразу при смене проекта, чтобы чужие не висели
-  useEffect(() => {
-    setSessionBridge({ sessions: [], selectedId: null, busySessions: new Set(), sessionConfig: {} })
-  }, [projectId])
 
   const handleSessionSelect = useCallback((id: string) => {
     setSessionBridge((b) => ({ ...b, selectedId: id }))

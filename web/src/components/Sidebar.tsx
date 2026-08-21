@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Project } from '../types'
+import type { Project, SessionInfo, SessionConfig } from '../types'
 import ProjectIcon from './ProjectIcon'
 
 interface Props {
@@ -10,12 +10,30 @@ interface Props {
   onSettings: () => void
   onVersions: () => void
   onLogout: () => void
+  sessions?: SessionInfo[]
+  selectedSessionId?: string | null
+  busySessions?: Set<string>
+  sessionConfig?: Record<string, SessionConfig>
+  onSessionSelect?: (id: string) => void
 }
 
 const OPEN_DELAY_MS = 120
 const CLOSE_DELAY_MS = 180
 
-export default function Sidebar({ projects, currentId, onOpen, onCreate, onSettings, onVersions, onLogout }: Props) {
+export default function Sidebar({
+  projects,
+  currentId,
+  onOpen,
+  onCreate,
+  onSettings,
+  onVersions,
+  onLogout,
+  sessions = [],
+  selectedSessionId = null,
+  busySessions = new Set(),
+  sessionConfig = {},
+  onSessionSelect
+}: Props) {
   const [expanded, setExpanded] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -36,6 +54,18 @@ export default function Sidebar({ projects, currentId, onOpen, onCreate, onSetti
 
   const active = projects.filter((p) => !p.archived)
   const archived = projects.filter((p) => p.archived)
+
+  const getShortModel = (sessionId: string): string => {
+    const cfg = sessionConfig[sessionId]
+    if (!cfg?.model) return ''
+    const parts = cfg.model.split('/')
+    return parts[parts.length - 1] || cfg.model
+  }
+
+  const isArchivedSession = (s: SessionInfo): boolean => {
+    const cfg = sessionConfig[s.id]
+    return (cfg as Record<string, unknown> as { archived?: boolean })?.archived === true
+  }
 
   return (
     <nav
@@ -58,7 +88,18 @@ export default function Sidebar({ projects, currentId, onOpen, onCreate, onSetti
 
       <div className="sidebar-scroll">
         {active.map((p) => (
-          <SidebarItem key={p.id} project={p} current={currentId === p.id} onOpen={onOpen} />
+          <SidebarProject
+            key={p.id}
+            project={p}
+            current={currentId === p.id}
+            onOpen={onOpen}
+            sessions={currentId === p.id ? sessions : []}
+            selectedSessionId={currentId === p.id ? selectedSessionId : null}
+            busySessions={currentId === p.id ? busySessions : new Set()}
+            getShortModel={getShortModel}
+            isArchivedSession={isArchivedSession}
+            onSessionSelect={onSessionSelect}
+          />
         ))}
 
         {active.length === 0 && <div className="sidebar-empty muted">Нет проектов. Создайте первый.</div>}
@@ -68,7 +109,19 @@ export default function Sidebar({ projects, currentId, onOpen, onCreate, onSetti
             <div className="sidebar-divider" />
             <div className="sidebar-subtitle">Архив</div>
             {archived.map((p) => (
-              <SidebarItem key={p.id} project={p} current={currentId === p.id} onOpen={onOpen} archived />
+              <SidebarProject
+                key={p.id}
+                project={p}
+                current={currentId === p.id}
+                onOpen={onOpen}
+                sessions={currentId === p.id ? sessions : []}
+                selectedSessionId={currentId === p.id ? selectedSessionId : null}
+                busySessions={currentId === p.id ? busySessions : new Set()}
+                getShortModel={getShortModel}
+                isArchivedSession={isArchivedSession}
+                onSessionSelect={onSessionSelect}
+                archived
+              />
             ))}
           </>
         )}
@@ -93,29 +146,68 @@ export default function Sidebar({ projects, currentId, onOpen, onCreate, onSetti
   )
 }
 
-function SidebarItem({
+function SidebarProject({
   project,
   current,
   onOpen,
+  sessions,
+  selectedSessionId,
+  busySessions,
+  getShortModel,
+  isArchivedSession,
+  onSessionSelect,
   archived
 }: {
   project: Project
   current: boolean
   onOpen: (id: string) => void
+  sessions: SessionInfo[]
+  selectedSessionId: string | null
+  busySessions: Set<string>
+  getShortModel: (id: string) => string
+  isArchivedSession: (s: SessionInfo) => boolean
+  onSessionSelect?: (id: string) => void
   archived?: boolean
 }) {
   const dotClass = project.crashed ? 'crashed' : project.running ? 'running' : ''
+  const expanded = current && sessions.length > 0
+  const activeSessions = sessions.filter((s) => !isArchivedSession(s))
+
   return (
-    <button
-      className={`sidebar-item ${current ? 'active' : ''} ${archived ? 'archived' : ''}`}
-      title={project.path}
-      onClick={() => onOpen(project.id)}
-    >
-      <span className="sidebar-icon-wrap">
-        <ProjectIcon project={project} size="sm" />
-        <span className={`sidebar-dot ${dotClass}`} aria-hidden />
-      </span>
-      <span className="sidebar-name">{project.name}</span>
-    </button>
+    <div className={`sidebar-project-group ${expanded ? 'expanded' : ''}`}>
+      <button
+        className={`sidebar-item ${current ? 'active' : ''} ${archived ? 'archived' : ''}`}
+        title={project.path}
+        onClick={() => onOpen(project.id)}
+      >
+        <span className="sidebar-icon-wrap">
+          <ProjectIcon project={project} size="sm" />
+          <span className={`sidebar-dot ${dotClass}`} aria-hidden />
+        </span>
+        <span className="sidebar-name">{project.name}</span>
+      </button>
+
+      {expanded && activeSessions.length > 0 && (
+        <div className="sidebar-sessions">
+          {activeSessions.slice(0, 20).map((s) => (
+            <button
+              key={s.id}
+              className={`sidebar-session-item ${s.id === selectedSessionId ? 'active' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                onSessionSelect?.(s.id)
+              }}
+              title={s.title || 'Без названия'}
+            >
+              <span className="sidebar-session-dot-wrap">
+                {busySessions.has(s.id) && <span className="sidebar-session-busy" />}
+              </span>
+              <span className="sidebar-session-title">{s.title || 'Без названия'}</span>
+              {getShortModel(s.id) && <span className="sidebar-session-model">{getShortModel(s.id)}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }

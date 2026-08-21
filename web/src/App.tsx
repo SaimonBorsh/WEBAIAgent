@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Dashboard from './components/Dashboard'
 import ProjectView from './components/ProjectView'
 import Login from './components/Login'
@@ -10,7 +10,14 @@ import ToastContainer from './components/ToastContainer'
 import { api, getToken, setToken } from './api'
 import { applyTheme, applyDensity, subscribeThemeChange } from './prefs'
 import { toast } from './toast'
-import type { Project } from './types'
+import type { Project, SessionInfo, SessionConfig } from './types'
+
+interface SessionBridge {
+  sessions: SessionInfo[]
+  selectedId: string | null
+  busySessions: Set<string>
+  sessionConfig: Record<string, SessionConfig>
+}
 
 export default function App() {
   const [projectId, setProjectId] = useState<string | null>(null)
@@ -21,6 +28,14 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [showVersions, setShowVersions] = useState(false)
+  const [showInfo, setShowInfo] = useState(false)
+
+  const [sessionBridge, setSessionBridge] = useState<SessionBridge>({
+    sessions: [],
+    selectedId: null,
+    busySessions: new Set(),
+    sessionConfig: {}
+  })
 
   const currentProject = projects.find((p) => p.id === projectId)
 
@@ -70,6 +85,17 @@ export default function App() {
     setProjectId((cur) => (cur === id ? null : id))
   }
 
+  const handleSessionSelect = useCallback((id: string) => {
+    setSessionBridge((b) => ({ ...b, selectedId: id }))
+  }, [])
+
+  const handleSessionsUpdate = useCallback(
+    (sessions: SessionInfo[], selectedId: string | null, busySessions: Set<string>, sessionConfig: Record<string, SessionConfig>) => {
+      setSessionBridge({ sessions, selectedId, busySessions, sessionConfig })
+    },
+    []
+  )
+
   const logout = async () => {
     try {
       await api.logout()
@@ -105,6 +131,11 @@ export default function App() {
         onSettings={() => setShowSettings(true)}
         onVersions={() => setShowVersions(true)}
         onLogout={logout}
+        sessions={projectId ? sessionBridge.sessions : []}
+        selectedSessionId={projectId ? sessionBridge.selectedId : null}
+        busySessions={projectId ? sessionBridge.busySessions : new Set()}
+        sessionConfig={projectId ? sessionBridge.sessionConfig : {}}
+        onSessionSelect={handleSessionSelect}
       />
       <div className="app-main">
         <header className="app-head">
@@ -119,13 +150,25 @@ export default function App() {
             )}
           </div>
           <div className="app-head-right">
-            <button className="btn btn-ghost btn-small" onClick={() => setShowSettings(true)} title="Настройки" aria-label="Настройки">
-              ⚙
+            <button className="btn btn-ghost btn-small" onClick={() => setShowInfo((v) => !v)} title="Справка" aria-label="Справка">
+              ?
             </button>
           </div>
         </header>
+        {showInfo && (
+          <div className="info-banner">
+            <strong>WEBAIAgent</strong> — веб-менеджер ИИ-агента на базе opencode. Создавайте проекты, запускайте серверы, общайтесь с агентом через чат.
+            <button className="btn btn-ghost btn-small" onClick={() => setShowInfo(false)}>✕</button>
+          </div>
+        )}
         {projectId ? (
-          <ProjectView projectId={projectId} onBack={() => setProjectId(null)} onChanged={() => void loadProjects()} />
+          <ProjectView
+            projectId={projectId}
+            onBack={() => setProjectId(null)}
+            onChanged={() => void loadProjects()}
+            externalSelectedId={sessionBridge.selectedId}
+            onSessionsUpdate={handleSessionsUpdate}
+          />
         ) : (
           <Dashboard
             projects={projects}

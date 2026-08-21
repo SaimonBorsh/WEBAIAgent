@@ -304,7 +304,8 @@ async function main() {
       'release', 'create', version,
       zipPath, updateZipPath,
       '--title', `WEBAIA ${version}`,
-      '--notes', `Релиз WEBAIA ${version}`
+      '--notes', `Релиз WEBAIA ${version}`,
+      '--draft=false'
     ]
     console.log(`> ${gh} ${args.join(' ')}`)
     const r = spawnSync(gh, args, { stdio: 'inherit' })

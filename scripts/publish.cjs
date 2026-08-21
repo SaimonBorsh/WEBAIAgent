@@ -127,10 +127,11 @@ function findNodeHome(extractedDir) {
   return sub ? path.join(extractedDir, sub) : extractedDir
 }
 
-function zipDir(srcDir, zipPath) {
+function zipDir(srcDir, zipPath, { includeBase = true } = {}) {
   log('zip', `упаковка ${srcDir} -> ${zipPath}`)
   if (fs.existsSync(zipPath)) fs.rmSync(zipPath, { force: true })
-  const ps = `Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::CreateFromDirectory('${srcDir}', '${zipPath}', [System.IO.Compression.CompressionLevel]::Optimal, $true)`
+  const flag = includeBase ? '$true' : '$false'
+  const ps = `Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::CreateFromDirectory('${srcDir}', '${zipPath}', [System.IO.Compression.CompressionLevel]::Optimal, ${flag})`
   const r = spawnSync('powershell', ['-NoProfile', '-Command', ps], { stdio: 'inherit', encoding: 'utf8' })
   if (r.status !== 0) throw new Error('не удалось создать zip')
 }
@@ -295,7 +296,7 @@ async function main() {
 
   log('publish', 'сборка лёгкого архива обновления (только версия)')
   const updateZipPath = path.join(OUT_DIR, `WEBAIA-${version}-update.zip`)
-  zipDir(verDir, updateZipPath)
+  zipDir(verDir, updateZipPath, { includeBase: false })
 
   if (doRelease) {
     log('release', `публикация GitHub Releases: ${version}`)

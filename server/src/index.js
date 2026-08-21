@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import zlib from 'node:zlib'
-import { spawn } from 'node:child_process'
+import { spawn, execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { BIND_HOST, INTERNAL_HOST, LAN_HOST, MANAGER_PORT, ROOT_DIR, SERVER_DIR, DATA_DIR } from './config.js'
 import * as registry from './registry.js'
@@ -593,7 +593,6 @@ const server = app.listen(MANAGER_PORT, BIND_HOST, async () => {
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.error(`[webaia] порт ${MANAGER_PORT} занят. Попытка найти и завершить старый процесс...`)
-    const { execFileSync } = require('node:child_process')
     try {
       const out = execFileSync('netstat', ['-ano'], { encoding: 'utf8', windowsHide: true })
       const line = out.split('\n').find((l) => l.includes(`:${MANAGER_PORT}`) && l.includes('LISTENING'))

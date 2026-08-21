@@ -5,7 +5,7 @@ import path from 'node:path'
 import zlib from 'node:zlib'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { BIND_HOST, INTERNAL_HOST, LAN_HOST, MANAGER_PORT, ROOT_DIR, DATA_DIR } from './config.js'
+import { BIND_HOST, INTERNAL_HOST, LAN_HOST, MANAGER_PORT, ROOT_DIR, SERVER_DIR, DATA_DIR } from './config.js'
 import * as registry from './registry.js'
 import * as manager from './manager.js'
 import { proxyToOpenCode } from './proxy.js'
@@ -524,7 +524,11 @@ app.use('/api/projects/:id', asyncHandler(async (req, res) => {
   proxyToOpenCode(req, res, project)
 }))
 
-const distDir = path.join(ROOT_DIR, 'web', 'dist')
+const distDir = (() => {
+  const fromRoot = path.join(ROOT_DIR, 'web', 'dist')
+  if (fs.existsSync(fromRoot)) return fromRoot
+  return path.join(SERVER_DIR, 'web', 'dist')
+})()
 if (fs.existsSync(distDir)) {
   app.use((req, res, next) => {
     if (req.path === '/' || req.path === '/index.html') res.setHeader('Cache-Control', 'no-cache')

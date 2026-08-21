@@ -29,6 +29,7 @@ export default function App() {
   const [showCreate, setShowCreate] = useState(false)
   const [showVersions, setShowVersions] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
+  const [pendingSessionSettings, setPendingSessionSettings] = useState<string | null>(null)
 
   const [sessionBridge, setSessionBridge] = useState<SessionBridge>({
     sessions: [],
@@ -96,6 +97,17 @@ export default function App() {
     []
   )
 
+  const handleSessionSettings = useCallback((id: string) => {
+    setPendingSessionSettings(id)
+  }, [])
+
+  const handleSessionArchive = useCallback(async (id: string, archived: boolean) => {
+    if (!projectId) return
+    try {
+      await api.archiveSession(projectId, id, archived)
+    } catch { /* ignore */ }
+  }, [projectId])
+
   const logout = async () => {
     try {
       await api.logout()
@@ -136,6 +148,8 @@ export default function App() {
         busySessions={projectId ? sessionBridge.busySessions : new Set()}
         sessionConfig={projectId ? sessionBridge.sessionConfig : {}}
         onSessionSelect={handleSessionSelect}
+        onSessionSettings={handleSessionSettings}
+        onSessionArchive={handleSessionArchive}
       />
       <div className="app-main">
         <header className="app-head">
@@ -168,6 +182,8 @@ export default function App() {
             onChanged={() => void loadProjects()}
             externalSelectedId={sessionBridge.selectedId}
             onSessionsUpdate={handleSessionsUpdate}
+            pendingSessionSettings={pendingSessionSettings}
+            onClearPendingSessionSettings={() => setPendingSessionSettings(null)}
           />
         ) : (
           <Dashboard

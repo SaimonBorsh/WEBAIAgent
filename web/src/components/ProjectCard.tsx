@@ -63,17 +63,10 @@ export default function ProjectCard({ project, onChanged, onOpen }: Props) {
           </div>
         </div>
         <div className="card-actions-inline" onClick={(e) => e.stopPropagation()}>
-          <button
-            className="btn btn-ghost btn-small"
-            title="Настройки проекта"
-            aria-label="Настройки проекта"
-            onClick={(e) => { e.stopPropagation(); onOpen() }}
-          >
-            ⚙
-          </button>
           <DropdownMenu
             title="Ещё"
             items={[
+              { label: 'Настройки проекта', onClick: () => onOpen() },
               { label: 'Переименовать', onClick: () => setShowRename(true) },
               { label: archived ? 'Вернуть из архива' : 'В архив', onClick: () => void toggleArchive() },
               { label: 'Удалить проект', danger: true, onClick: () => void deleteProject() }

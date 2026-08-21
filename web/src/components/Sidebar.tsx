@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import type { Project, SessionInfo, SessionConfig } from '../types'
 import ProjectIcon from './ProjectIcon'
 
@@ -15,10 +15,9 @@ interface Props {
   busySessions?: Set<string>
   sessionConfig?: Record<string, SessionConfig>
   onSessionSelect?: (id: string) => void
+  onSessionSettings?: (id: string) => void
+  onSessionArchive?: (id: string, archived: boolean) => void
 }
-
-const OPEN_DELAY_MS = 120
-const CLOSE_DELAY_MS = 180
 
 export default function Sidebar({
   projects,
@@ -32,26 +31,10 @@ export default function Sidebar({
   selectedSessionId = null,
   busySessions = new Set(),
   sessionConfig = {},
-  onSessionSelect
+  onSessionSelect,
+  onSessionSettings,
+  onSessionArchive
 }: Props) {
-  const [expanded, setExpanded] = useState(false)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    return () => {
-      if (timer.current) clearTimeout(timer.current)
-    }
-  }, [])
-
-  const open = () => {
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(() => setExpanded(true), OPEN_DELAY_MS)
-  }
-  const close = () => {
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(() => setExpanded(false), CLOSE_DELAY_MS)
-  }
-
   const active = projects.filter((p) => !p.archived)
   const archived = projects.filter((p) => p.archived)
 
@@ -68,12 +51,7 @@ export default function Sidebar({
   }
 
   return (
-    <nav
-      className={`sidebar ${expanded ? 'expanded' : 'collapsed'}`}
-      aria-label="Навигация"
-      onMouseEnter={open}
-      onMouseLeave={close}
-    >
+    <nav className="sidebar expanded" aria-label="Навигация">
       <div className="sidebar-head">
         <span className="sidebar-title">Проекты</span>
         <button
@@ -99,6 +77,8 @@ export default function Sidebar({
             getShortModel={getShortModel}
             isArchivedSession={isArchivedSession}
             onSessionSelect={onSessionSelect}
+            onSessionSettings={onSessionSettings}
+            onSessionArchive={onSessionArchive}
           />
         ))}
 
@@ -120,6 +100,8 @@ export default function Sidebar({
                 getShortModel={getShortModel}
                 isArchivedSession={isArchivedSession}
                 onSessionSelect={onSessionSelect}
+                onSessionSettings={onSessionSettings}
+                onSessionArchive={onSessionArchive}
                 archived
               />
             ))}
@@ -156,6 +138,8 @@ function SidebarProject({
   getShortModel,
   isArchivedSession,
   onSessionSelect,
+  onSessionSettings,
+  onSessionArchive,
   archived
 }: {
   project: Project
@@ -167,6 +151,8 @@ function SidebarProject({
   getShortModel: (id: string) => string
   isArchivedSession: (s: SessionInfo) => boolean
   onSessionSelect?: (id: string) => void
+  onSessionSettings?: (id: string) => void
+  onSessionArchive?: (id: string, archived: boolean) => void
   archived?: boolean
 }) {
   const dotClass = project.crashed ? 'crashed' : project.running ? 'running' : ''
@@ -190,23 +176,71 @@ function SidebarProject({
       {expanded && activeSessions.length > 0 && (
         <div className="sidebar-sessions">
           {activeSessions.slice(0, 20).map((s) => (
-            <button
+            <div
               key={s.id}
               className={`sidebar-session-item ${s.id === selectedSessionId ? 'active' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation()
-                onSessionSelect?.(s.id)
-              }}
-              title={s.title || 'Без названия'}
             >
-              <span className="sidebar-session-dot-wrap">
-                {busySessions.has(s.id) && <span className="sidebar-session-busy" />}
-              </span>
-              <span className="sidebar-session-title">{s.title || 'Без названия'}</span>
-              {getShortModel(s.id) && <span className="sidebar-session-model">{getShortModel(s.id)}</span>}
-            </button>
+              <button
+                className="sidebar-session-main"
+                onClick={() => onSessionSelect?.(s.id)}
+                title={s.title || 'Без названия'}
+              >
+                <span className="sidebar-session-dot-wrap">
+                  {busySessions.has(s.id) && <span className="sidebar-session-busy" />}
+                </span>
+                <span className="sidebar-session-title">{s.title || 'Без названия'}</span>
+                {getShortModel(s.id) && <span className="sidebar-session-model">{getShortModel(s.id)}</span>}
+              </button>
+              <SessionContextMenu
+                sessionId={s.id}
+                archived={isArchivedSession(s)}
+                onSettings={() => onSessionSettings?.(s.id)}
+                onArchive={() => onSessionArchive?.(s.id, !isArchivedSession(s))}
+              />
+            </div>
           ))}
         </div>
+      )}
+    </div>
+  )
+}
+
+function SessionContextMenu({
+  sessionId,
+  archived,
+  onSettings,
+  onArchive
+}: {
+  sessionId: string
+  archived: boolean
+  onSettings: () => void
+  onArchive: () => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="sidebar-session-menu-wrap">
+      <button
+        className="sidebar-session-menu-btn"
+        title="Ещё"
+        aria-label="Ещё"
+        onClick={(e) => {
+          e.stopPropagation()
+          setOpen((v) => !v)
+        }}
+      >
+        ⋯
+      </button>
+      {open && (
+        <>
+          <div className="sidebar-session-menu-backdrop" onClick={() => setOpen(false)} />
+          <div className="sidebar-session-menu">
+            <button onClick={() => { setOpen(false); onSettings() }}>Настройки</button>
+            <button onClick={() => { setOpen(false); onArchive() }}>
+              {archived ? 'Вернуть из архива' : 'В архив'}
+            </button>
+          </div>
+        </>
       )}
     </div>
   )

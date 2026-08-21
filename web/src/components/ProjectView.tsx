@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Project, SessionInfo, SessionConfig, FreeModel } from '../types'
 import { api, subscribeEvents } from '../api'
 import Chat from './Chat'
-import DropdownMenu from './DropdownMenu'
 import SessionSettingsModal from './SessionSettingsModal'
 import ProjectSettingsModal from './ProjectSettingsModal'
 import RenameProjectModal from './RenameProjectModal'
@@ -16,6 +15,8 @@ interface Props {
   onChanged?: () => void
   externalSelectedId?: string | null
   onSessionsUpdate?: (sessions: SessionInfo[], selectedId: string | null, busySessions: Set<string>, sessionConfig: Record<string, SessionConfig>) => void
+  pendingSessionSettings?: string | null
+  onClearPendingSessionSettings?: () => void
 }
 
 interface ProjectConfig {
@@ -37,7 +38,7 @@ interface SessionModalState {
   title?: string
 }
 
-export default function ProjectView({ projectId, onBack, onChanged, externalSelectedId, onSessionsUpdate }: Props) {
+export default function ProjectView({ projectId, onBack, onChanged, externalSelectedId, onSessionsUpdate, pendingSessionSettings, onClearPendingSessionSettings }: Props) {
   const [project, setProject] = useState<Project | null>(null)
   const [sessions, setSessions] = useState<SessionInfo[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -366,11 +367,25 @@ export default function ProjectView({ projectId, onBack, onChanged, externalSele
     onSessionsUpdate?.(sessions, selectedId, busySessions, config?.sessionConfig || {})
   }, [sessions, selectedId, busySessions, config?.sessionConfig, onSessionsUpdate])
 
+  // Handle external session settings request from sidebar
+  useEffect(() => {
+    if (pendingSessionSettings) {
+      const s = sessions.find((sess) => sess.id === pendingSessionSettings)
+      if (s) {
+        setSessionModal({ mode: 'edit', id: s.id, title: s.title || '' })
+      }
+      onClearPendingSessionSettings?.()
+    }
+  }, [pendingSessionSettings])
+
   if (!project) {
     return <div className="muted pad">Загрузка…</div>
   }
 
   const archived = !!project.archived
+  const currentSession = sessions.find((s) => s.id === selectedId)
+  const sessionConfig = selectedId ? configFor(selectedId) : null
+  const sessionModelShort = sessionConfig?.model ? sessionConfig.model.split('/').pop() || sessionConfig.model : ''
 
   return (
     <div className="project">
@@ -399,21 +414,12 @@ export default function ProjectView({ projectId, onBack, onChanged, externalSele
                   ) : (
                     <span className="badge badge-off">офлайн</span>
                   )}
-                  <DropdownMenu
-                    title="Проект"
-                    items={[
-                      {
-                        label: initMode ? 'Инициализация…' : 'Инициализировать',
-                        disabled: archived || !project.running || initMode,
-                        onClick: () => void doInit()
-                      },
-                      { label: '+ Новая сессия', onClick: () => setSessionModal({ mode: 'new' }) },
-                      { label: 'Настройки проекта', onClick: () => setShowSettings(true) },
-                      { label: 'Переименовать', onClick: () => setShowRename(true) },
-                      { label: archived ? 'Вернуть из архива' : 'В архив', onClick: () => void toggleProjectArchive() },
-                      { label: 'Удалить проект', danger: true, onClick: () => void deleteProject() }
-                    ]}
-                  />
+                  {currentSession && (
+                    <span className="chat-header-session">
+                      <span className="chat-header-session-name">{currentSession.title || 'Без названия'}</span>
+                      {sessionModelShort && <span className="chat-header-session-model">{sessionModelShort}</span>}
+                    </span>
+                  )}
                 </div>
                 <Chat projectId={projectId} sessionId={selectedId} config={configFor(selectedId)} />
               </div>

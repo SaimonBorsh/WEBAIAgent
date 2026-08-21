@@ -718,6 +718,28 @@ html[data-density='compact'] .message-body {
   flex: 0 0 auto;
 }
 
+.chat-header-session {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chat-header-session-name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-header-session-model {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--mono);
+  flex: 0 0 auto;
+}
+
 .stopped {
   flex: 1;
   display: flex;
@@ -1730,15 +1752,15 @@ html[data-theme='light'] .chat-input {
 .sidebar-session-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px 4px 28px;
+  gap: 2px;
+  padding: 4px 4px 4px 28px;
   border-radius: 6px;
   border: none;
   background: none;
   color: var(--text);
   font-family: inherit;
   font-size: 12px;
-  cursor: pointer;
+  cursor: default;
   text-align: left;
   width: 100%;
   min-width: 0;
@@ -1752,6 +1774,21 @@ html[data-theme='light'] .chat-input {
 .sidebar-session-item.active {
   background: rgba(79, 140, 255, 0.14);
   color: var(--accent);
+}
+
+.sidebar-session-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
 }
 
 .sidebar-session-dot-wrap {
@@ -1785,6 +1822,70 @@ html[data-theme='light'] .chat-input {
   overflow: hidden;
   text-overflow: ellipsis;
   font-family: var(--mono);
+}
+
+.sidebar-session-menu-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.sidebar-session-menu-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+  border-radius: 4px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.sidebar-session-item:hover .sidebar-session-menu-btn {
+  opacity: 1;
+}
+
+.sidebar-session-menu-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.sidebar-session-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+
+.sidebar-session-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 101;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  padding: 4px;
+  min-width: 140px;
+}
+
+.sidebar-session-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.sidebar-session-menu button:hover {
+  background: var(--bg-hover);
 }
 
 .sidebar-divider {

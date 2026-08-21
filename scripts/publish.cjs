@@ -168,7 +168,7 @@ if not exist "keepalive.bundle.cjs" (
   exit /b 1
 )
 echo [WEBAIA] Запуск менеджера (порт 3720, веб: http://127.0.0.1:3720)...
-start "WEBAIA Manager" /min "%~dp0node\\node.exe" "%~dp0keepalive.bundle.cjs"
+wscript.exe "%~dp0start.vbs"
 echo [WEBAIA] Менеджер запущен в фоне. Для остановки: stop.cmd
 timeout /t 3 >nul
 `
@@ -214,8 +214,13 @@ xcopy "%~dp0data" "%DST%\\data\\" /E /I /Y >nul
 echo [WEBAIA] Резервная копия данных: %DST%
 pause
 `
+  const startVbs = `Set WshShell = CreateObject("WScript.Shell")
+WshShell.CurrentDirectory = CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName)
+WshShell.Run "node.exe keepalive.bundle.cjs", 0, False
+`
   for (const [name, content] of [
     ['start.cmd', startCmd],
+    ['start.vbs', startVbs],
     ['stop.cmd', stopCmd],
     ['versions.cmd', versionsCmd],
     ['backup.cmd', backupCmd]

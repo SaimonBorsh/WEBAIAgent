@@ -232,6 +232,7 @@ async function main() {
   ensureDir(BIN)
   ensureDir(DATA)
   ensureDir(CACHE)
+  fs.writeFileSync(path.join(DATA, '.gitkeep'), 'Папка данных WEBAIAgent\n', 'utf8')
 
   const verDir = path.join(VERSIONS, version)
 

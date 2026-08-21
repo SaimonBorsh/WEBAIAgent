@@ -12,8 +12,11 @@ export const BASE_DIR = HOME_DIR || (process.env.WEBAIA_ROOT ? path.resolve(ROOT
 const detectDataDir = () => {
   if (process.env.WEBAIA_DATA) return path.resolve(process.env.WEBAIA_DATA)
   const rootDir = path.resolve(SERVER_DIR, '..')
-  const dataInRoot = path.join(rootDir, 'data')
-  if (fs.existsSync(dataInRoot) && fs.existsSync(path.join(rootDir, 'versions'))) return dataInRoot
+  if (fs.existsSync(path.join(rootDir, 'versions'))) {
+    const dataDir = path.join(rootDir, 'data')
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true })
+    return dataDir
+  }
   return SERVER_DIR
 }
 export const DATA_DIR = detectDataDir()
@@ -54,7 +57,7 @@ export const GH_REPO = process.env.WEBAIA_GH_REPO || 'SaimonBorsh/WEBAIAgent'
 
 function loadGhToken() {
   if (process.env.WEBAIA_GH_TOKEN) return process.env.WEBAIA_GH_TOKEN
-  for (const dir of [DATA_DIR, SERVER_DIR]) {
+  for (const dir of [BASE_DIR, DATA_DIR, SERVER_DIR]) {
     try {
       const t = fs.readFileSync(path.join(dir, 'gh_token.txt'), 'utf8').trim()
       if (t) return t

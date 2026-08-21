@@ -4,7 +4,9 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const ROOT = path.resolve(__dirname, '..')
+const ROOT = fs.existsSync(path.join(__dirname, 'versions'))
+  ? __dirname
+  : path.resolve(__dirname, '..')
 
 const PORTABLE = fs.existsSync(path.join(ROOT, 'versions')) && fs.existsSync(path.join(ROOT, 'current.txt'))
 const DATA_DIR = PORTABLE ? path.join(ROOT, 'data') : path.join(ROOT, 'server')

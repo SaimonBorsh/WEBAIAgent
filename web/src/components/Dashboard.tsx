@@ -6,11 +6,12 @@ interface Props {
   loading: boolean
   error: string
   onOpenProject: (id: string) => void
+  onOpenProjectSettings?: (id: string) => void
   onCreate: () => void
   onChanged: () => void
 }
 
-export default function Dashboard({ projects, loading, error, onOpenProject, onCreate, onChanged }: Props) {
+export default function Dashboard({ projects, loading, error, onOpenProject, onOpenProjectSettings, onCreate, onChanged }: Props) {
   const active = projects.filter((p) => !p.archived)
   const archived = projects.filter((p) => p.archived)
   const running = projects.filter((p) => p.running && !p.archived)
@@ -51,7 +52,7 @@ export default function Dashboard({ projects, loading, error, onOpenProject, onC
             ) : (
               <div className="cards">
                 {active.map((p) => (
-                  <ProjectCard key={p.id} project={p} onChanged={onChanged} onOpen={() => onOpenProject(p.id)} />
+                  <ProjectCard key={p.id} project={p} onChanged={onChanged} onOpen={() => onOpenProject(p.id)} onOpenSettings={() => onOpenProjectSettings?.(p.id)} />
                 ))}
               </div>
             )}
@@ -62,7 +63,7 @@ export default function Dashboard({ projects, loading, error, onOpenProject, onC
               <h2 className="dashboard-section-title">Архив</h2>
               <div className="cards">
                 {archived.map((p) => (
-                  <ProjectCard key={p.id} project={p} onChanged={onChanged} onOpen={() => onOpenProject(p.id)} />
+                  <ProjectCard key={p.id} project={p} onChanged={onChanged} onOpen={() => onOpenProject(p.id)} onOpenSettings={() => onOpenProjectSettings?.(p.id)} />
                 ))}
               </div>
             </div>

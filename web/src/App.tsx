@@ -30,6 +30,7 @@ export default function App() {
   const [showVersions, setShowVersions] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
   const [pendingSessionSettings, setPendingSessionSettings] = useState<string | null>(null)
+  const [pendingProjectSettings, setPendingProjectSettings] = useState(false)
 
   const [sessionBridge, setSessionBridge] = useState<SessionBridge>({
     sessions: [],
@@ -84,6 +85,11 @@ export default function App() {
 
   const handleOpenProject = (id: string) => {
     setProjectId((cur) => (cur === id ? null : id))
+  }
+
+  const handleOpenProjectSettings = (id: string) => {
+    setProjectId(id)
+    setPendingProjectSettings(true)
   }
 
   const handleSessionSelect = useCallback((id: string) => {
@@ -206,6 +212,8 @@ export default function App() {
             onSessionsUpdate={handleSessionsUpdate}
             pendingSessionSettings={pendingSessionSettings}
             onClearPendingSessionSettings={() => setPendingSessionSettings(null)}
+            pendingProjectSettings={pendingProjectSettings}
+            onClearPendingProjectSettings={() => setPendingProjectSettings(false)}
           />
         ) : (
           <Dashboard
@@ -213,6 +221,7 @@ export default function App() {
             loading={loadingProjects}
             error={projectsError}
             onOpenProject={handleOpenProject}
+            onOpenProjectSettings={handleOpenProjectSettings}
             onCreate={() => setShowCreate(true)}
             onChanged={() => void loadProjects()}
           />

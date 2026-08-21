@@ -1101,6 +1101,10 @@ html[data-theme='light'] .chat-input {
   padding: 10px 12px;
   resize: none;
   width: 100%;
+  field-sizing: content;
+  min-height: 42px;
+  max-height: 50vh;
+  overflow-y: auto;
 }
 
 .chat-input textarea:focus {

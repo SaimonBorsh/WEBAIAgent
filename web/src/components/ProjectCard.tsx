@@ -9,6 +9,7 @@ interface Props {
   project: Project
   onChanged: () => void
   onOpen: () => void
+  onOpenSettings?: () => void
 }
 
 function folderName(p: string): string {
@@ -16,7 +17,7 @@ function folderName(p: string): string {
   return parts[parts.length - 1] || p
 }
 
-export default function ProjectCard({ project, onChanged, onOpen }: Props) {
+export default function ProjectCard({ project, onChanged, onOpen, onOpenSettings }: Props) {
   const [showRename, setShowRename] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -66,7 +67,7 @@ export default function ProjectCard({ project, onChanged, onOpen }: Props) {
           <DropdownMenu
             title="Ещё"
             items={[
-              { label: 'Настройки проекта', onClick: () => onOpen() },
+              { label: 'Настройки проекта', onClick: () => onOpenSettings ? onOpenSettings() : onOpen() },
               { label: 'Переименовать', onClick: () => setShowRename(true) },
               { label: archived ? 'Вернуть из архива' : 'В архив', onClick: () => void toggleArchive() },
               { label: 'Удалить проект', danger: true, onClick: () => void deleteProject() }

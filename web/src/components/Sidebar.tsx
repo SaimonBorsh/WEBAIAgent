@@ -162,7 +162,7 @@ function SidebarProject({
   return (
     <div className={`sidebar-project-group ${expanded ? 'expanded' : ''}`}>
       <button
-        className={`sidebar-item ${current ? 'active' : ''} ${archived ? 'archived' : ''}`}
+        className={`sidebar-item ${!expanded && current ? 'active' : ''} ${archived ? 'archived' : ''}`}
         title={project.path}
         onClick={() => onOpen(project.id)}
       >

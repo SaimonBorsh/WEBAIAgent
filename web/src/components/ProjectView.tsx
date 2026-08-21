@@ -17,6 +17,8 @@ interface Props {
   onSessionsUpdate?: (sessions: SessionInfo[], selectedId: string | null, busySessions: Set<string>, sessionConfig: Record<string, SessionConfig>) => void
   pendingSessionSettings?: string | null
   onClearPendingSessionSettings?: () => void
+  pendingProjectSettings?: boolean
+  onClearPendingProjectSettings?: () => void
 }
 
 interface ProjectConfig {
@@ -38,7 +40,7 @@ interface SessionModalState {
   title?: string
 }
 
-export default function ProjectView({ projectId, onBack, onChanged, externalSelectedId, onSessionsUpdate, pendingSessionSettings, onClearPendingSessionSettings }: Props) {
+export default function ProjectView({ projectId, onBack, onChanged, externalSelectedId, onSessionsUpdate, pendingSessionSettings, onClearPendingSessionSettings, pendingProjectSettings, onClearPendingProjectSettings }: Props) {
   const [project, setProject] = useState<Project | null>(null)
   const [sessions, setSessions] = useState<SessionInfo[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -377,6 +379,14 @@ export default function ProjectView({ projectId, onBack, onChanged, externalSele
       onClearPendingSessionSettings?.()
     }
   }, [pendingSessionSettings])
+
+  // Handle external project settings request from dashboard card
+  useEffect(() => {
+    if (pendingProjectSettings) {
+      setShowSettings(true)
+      onClearPendingProjectSettings?.()
+    }
+  }, [pendingProjectSettings])
 
   if (!project) {
     return <div className="muted pad">Загрузка…</div>

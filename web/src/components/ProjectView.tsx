@@ -383,9 +383,6 @@ export default function ProjectView({ projectId, onBack, onChanged, externalSele
   }
 
   const archived = !!project.archived
-  const currentSession = sessions.find((s) => s.id === selectedId)
-  const sessionConfig = selectedId ? configFor(selectedId) : null
-  const sessionModelShort = sessionConfig?.model ? sessionConfig.model.split('/').pop() || sessionConfig.model : ''
 
   return (
     <div className="project">
@@ -402,25 +399,6 @@ export default function ProjectView({ projectId, onBack, onChanged, externalSele
           {project.running ? (
             selectedId ? (
               <div className="chat-full">
-                <div className="chat-header-bar">
-                  {archived ? (
-                    <span className="badge badge-archived">архив</span>
-                  ) : starting ? (
-                    <span className="badge badge-starting">запуск…</span>
-                  ) : project.crashed ? (
-                    <span className="badge badge-danger">упал</span>
-                  ) : project.running ? (
-                    <span className="badge badge-on">онлайн</span>
-                  ) : (
-                    <span className="badge badge-off">офлайн</span>
-                  )}
-                  {currentSession && (
-                    <span className="chat-header-session">
-                      <span className="chat-header-session-name">{currentSession.title || 'Без названия'}</span>
-                      {sessionModelShort && <span className="chat-header-session-model">{sessionModelShort}</span>}
-                    </span>
-                  )}
-                </div>
                 <Chat projectId={projectId} sessionId={selectedId} config={configFor(selectedId)} />
               </div>
             ) : (

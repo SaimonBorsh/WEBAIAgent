@@ -160,8 +160,30 @@ export default function App() {
               <>
                 <span className="app-sep">/</span>
                 <span className="app-project-name">{currentProject.name}</span>
+                {currentProject.archived ? (
+                  <span className="badge badge-archived">архив</span>
+                ) : currentProject.running ? (
+                  <span className="badge badge-on">онлайн</span>
+                ) : currentProject.crashed ? (
+                  <span className="badge badge-danger">упал</span>
+                ) : (
+                  <span className="badge badge-off">офлайн</span>
+                )}
               </>
             )}
+            {currentProject && sessionBridge.selectedId && (() => {
+              const sess = sessionBridge.sessions.find((s) => s.id === sessionBridge.selectedId)
+              if (!sess) return null
+              const cfg = sessionBridge.sessionConfig[sessionBridge.selectedId]
+              const modelShort = cfg?.model ? cfg.model.split('/').pop() || cfg.model : ''
+              return (
+                <>
+                  <span className="app-sep">/</span>
+                  <span className="app-session-name">{sess.title || 'Без названия'}</span>
+                  {modelShort && <span className="app-session-model">{modelShort}</span>}
+                </>
+              )
+            })()}
           </div>
           <div className="app-head-right">
             <button className="btn btn-ghost btn-small" onClick={() => setShowInfo((v) => !v)} title="Справка" aria-label="Справка">

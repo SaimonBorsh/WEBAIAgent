@@ -189,7 +189,6 @@ function SidebarProject({
                   {busySessions.has(s.id) && <span className="sidebar-session-busy" />}
                 </span>
                 <span className="sidebar-session-title">{s.title || 'Без названия'}</span>
-                {getShortModel(s.id) && <span className="sidebar-session-model">{getShortModel(s.id)}</span>}
               </button>
               <SessionContextMenu
                 sessionId={s.id}

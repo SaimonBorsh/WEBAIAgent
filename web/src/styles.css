@@ -150,6 +150,22 @@ body {
   white-space: nowrap;
 }
 
+.app-session-name {
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--text);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-session-model {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
 .app-sub {
   color: var(--muted);
   font-size: 12px;
@@ -706,38 +722,6 @@ html[data-density='compact'] .message-body {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-}
-
-.chat-header-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 16px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-soft);
-  flex: 0 0 auto;
-}
-
-.chat-header-session {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.chat-header-session-name {
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.chat-header-session-model {
-  font-size: 11px;
-  color: var(--muted);
-  font-family: var(--mono);
-  flex: 0 0 auto;
 }
 
 .stopped {

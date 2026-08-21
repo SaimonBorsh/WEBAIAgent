@@ -17,6 +17,7 @@ interface SessionBridge {
   selectedId: string | null
   busySessions: Set<string>
   sessionConfig: Record<string, SessionConfig>
+  archivedSessions: Record<string, boolean>
 }
 
 export default function App() {
@@ -36,7 +37,8 @@ export default function App() {
     sessions: [],
     selectedId: null,
     busySessions: new Set(),
-    sessionConfig: {}
+    sessionConfig: {},
+    archivedSessions: {}
   })
 
   const currentProject = projects.find((p) => p.id === projectId)
@@ -83,7 +85,7 @@ export default function App() {
     void check()
   }, [])
 
-  const emptyBridge = { sessions: [], selectedId: null, busySessions: new Set<string>(), sessionConfig: {} }
+  const emptyBridge = { sessions: [], selectedId: null, busySessions: new Set<string>(), sessionConfig: {}, archivedSessions: {} }
 
   const handleOpenProject = (id: string) => {
     setProjectId((cur) => {
@@ -105,8 +107,8 @@ export default function App() {
   }, [])
 
   const handleSessionsUpdate = useCallback(
-    (sessions: SessionInfo[], selectedId: string | null, busySessions: Set<string>, sessionConfig: Record<string, SessionConfig>) => {
-      setSessionBridge({ sessions, selectedId, busySessions, sessionConfig })
+    (sessions: SessionInfo[], selectedId: string | null, busySessions: Set<string>, sessionConfig: Record<string, SessionConfig>, archivedSessions: Record<string, boolean>) => {
+      setSessionBridge({ sessions, selectedId, busySessions, sessionConfig, archivedSessions })
     },
     []
   )
@@ -161,6 +163,7 @@ export default function App() {
         selectedSessionId={projectId ? sessionBridge.selectedId : null}
         busySessions={projectId ? sessionBridge.busySessions : new Set()}
         sessionConfig={projectId ? sessionBridge.sessionConfig : {}}
+        archivedSessions={projectId ? sessionBridge.archivedSessions : {}}
         onSessionSelect={handleSessionSelect}
         onSessionSettings={handleSessionSettings}
         onSessionArchive={handleSessionArchive}

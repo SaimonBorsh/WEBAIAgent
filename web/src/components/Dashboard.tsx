@@ -13,7 +13,6 @@ interface Props {
 
 export default function Dashboard({ projects, loading, error, onOpenProject, onOpenProjectSettings, onCreate, onChanged }: Props) {
   const active = projects.filter((p) => !p.archived)
-  const archived = projects.filter((p) => p.archived)
   const running = projects.filter((p) => p.running && !p.archived)
 
   return (
@@ -23,7 +22,7 @@ export default function Dashboard({ projects, loading, error, onOpenProject, onO
           <h1>Проекты</h1>
           <p className="muted">
             {projects.length
-              ? `${active.length} активных · ${running.length} запущено${archived.length ? ` · ${archived.length} в архиве` : ''}`
+              ? `${active.length} активных · ${running.length} запущено`
               : 'Создайте первый проект, чтобы начать работу'}
           </p>
         </div>
@@ -57,17 +56,6 @@ export default function Dashboard({ projects, loading, error, onOpenProject, onO
               </div>
             )}
           </div>
-
-          {archived.length > 0 && (
-            <div className="dashboard-section">
-              <h2 className="dashboard-section-title">Архив</h2>
-              <div className="cards">
-                {archived.map((p) => (
-                  <ProjectCard key={p.id} project={p} onChanged={onChanged} onOpen={() => onOpenProject(p.id)} onOpenSettings={() => onOpenProjectSettings?.(p.id)} />
-                ))}
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>

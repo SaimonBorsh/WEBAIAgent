@@ -14,6 +14,7 @@ interface Props {
   selectedSessionId?: string | null
   busySessions?: Set<string>
   sessionConfig?: Record<string, SessionConfig>
+  archivedSessions?: Record<string, boolean>
   onSessionSelect?: (id: string) => void
   onSessionSettings?: (id: string) => void
   onSessionArchive?: (id: string, archived: boolean) => void
@@ -31,10 +32,14 @@ export default function Sidebar({
   selectedSessionId = null,
   busySessions = new Set(),
   sessionConfig = {},
+  archivedSessions = {},
   onSessionSelect,
   onSessionSettings,
   onSessionArchive
 }: Props) {
+  const [archiveExpanded, setArchiveExpanded] = useState(false)
+  const [expandedArchiveProject, setExpandedArchiveProject] = useState<string | null>(null)
+
   const active = projects.filter((p) => !p.archived)
   const archived = projects.filter((p) => p.archived)
 
@@ -46,8 +51,7 @@ export default function Sidebar({
   }
 
   const isArchivedSession = (s: SessionInfo): boolean => {
-    const cfg = sessionConfig[s.id]
-    return (cfg as Record<string, unknown> as { archived?: boolean })?.archived === true
+    return archivedSessions[s.id] === true
   }
 
   return (
@@ -74,7 +78,6 @@ export default function Sidebar({
             sessions={currentId === p.id ? sessions : []}
             selectedSessionId={currentId === p.id ? selectedSessionId : null}
             busySessions={currentId === p.id ? busySessions : new Set()}
-            getShortModel={getShortModel}
             isArchivedSession={isArchivedSession}
             onSessionSelect={onSessionSelect}
             onSessionSettings={onSessionSettings}
@@ -85,27 +88,29 @@ export default function Sidebar({
         {active.length === 0 && <div className="sidebar-empty muted">Нет проектов. Создайте первый.</div>}
 
         {archived.length > 0 && (
-          <>
-            <div className="sidebar-divider" />
-            <div className="sidebar-subtitle">Архив</div>
-            {archived.map((p) => (
-              <SidebarProject
-                key={p.id}
-                project={p}
-                current={currentId === p.id}
-                onOpen={onOpen}
-                sessions={currentId === p.id ? sessions : []}
-                selectedSessionId={currentId === p.id ? selectedSessionId : null}
-                busySessions={currentId === p.id ? busySessions : new Set()}
-                getShortModel={getShortModel}
-                isArchivedSession={isArchivedSession}
-                onSessionSelect={onSessionSelect}
-                onSessionSettings={onSessionSettings}
-                onSessionArchive={onSessionArchive}
-                archived
-              />
-            ))}
-          </>
+          <div className={`sidebar-archive-section ${archiveExpanded ? 'expanded' : ''}`}>
+            <button
+              className="sidebar-item sidebar-archive-toggle"
+              onClick={() => setArchiveExpanded((v) => !v)}
+            >
+              <span className="sidebar-archive-arrow">{archiveExpanded ? '▾' : '▸'}</span>
+              <span className="sidebar-name">Архив ({archived.length})</span>
+            </button>
+            {archiveExpanded && (
+              <div className="sidebar-archive-list">
+                {archived.map((p) => (
+                  <SidebarArchivedProject
+                    key={p.id}
+                    project={p}
+                    current={currentId === p.id}
+                    onOpen={onOpen}
+                    expanded={expandedArchiveProject === p.id}
+                    onToggleExpand={() => setExpandedArchiveProject((cur) => cur === p.id ? null : p.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -135,12 +140,10 @@ function SidebarProject({
   sessions,
   selectedSessionId,
   busySessions,
-  getShortModel,
   isArchivedSession,
   onSessionSelect,
   onSessionSettings,
-  onSessionArchive,
-  archived
+  onSessionArchive
 }: {
   project: Project
   current: boolean
@@ -148,12 +151,10 @@ function SidebarProject({
   sessions: SessionInfo[]
   selectedSessionId: string | null
   busySessions: Set<string>
-  getShortModel: (id: string) => string
   isArchivedSession: (s: SessionInfo) => boolean
   onSessionSelect?: (id: string) => void
   onSessionSettings?: (id: string) => void
   onSessionArchive?: (id: string, archived: boolean) => void
-  archived?: boolean
 }) {
   const dotClass = project.crashed ? 'crashed' : project.running ? 'running' : ''
   const expanded = current && sessions.length > 0
@@ -162,7 +163,7 @@ function SidebarProject({
   return (
     <div className={`sidebar-project-group ${expanded ? 'expanded' : ''}`}>
       <button
-        className={`sidebar-item ${!expanded && current ? 'active' : ''} ${archived ? 'archived' : ''}`}
+        className={`sidebar-item ${!expanded && current ? 'active' : ''}`}
         title={project.path}
         onClick={() => onOpen(project.id)}
       >
@@ -192,14 +193,43 @@ function SidebarProject({
               </button>
               <SessionContextMenu
                 sessionId={s.id}
-                archived={isArchivedSession(s)}
+                archived={false}
                 onSettings={() => onSessionSettings?.(s.id)}
-                onArchive={() => onSessionArchive?.(s.id, !isArchivedSession(s))}
+                onArchive={() => onSessionArchive?.(s.id, true)}
               />
             </div>
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function SidebarArchivedProject({
+  project,
+  current,
+  onOpen,
+  expanded,
+  onToggleExpand
+}: {
+  project: Project
+  current: boolean
+  onOpen: (id: string) => void
+  expanded: boolean
+  onToggleExpand: () => void
+}) {
+  return (
+    <div className={`sidebar-project-group ${expanded ? 'expanded' : ''}`}>
+      <button
+        className={`sidebar-item ${!expanded && current ? 'active' : ''} archived`}
+        title={project.path}
+        onClick={() => onOpen(project.id)}
+      >
+        <span className="sidebar-icon-wrap">
+          <ProjectIcon project={project} size="sm" />
+        </span>
+        <span className="sidebar-name">{project.name}</span>
+      </button>
     </div>
   )
 }

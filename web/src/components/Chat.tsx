@@ -21,6 +21,7 @@ interface Props {
   projectId: string
   sessionId: string
   config: SessionConfig
+  archived?: boolean
 }
 
 const MAX_DRAG_BYTES = 5 * 1024 * 1024
@@ -81,7 +82,7 @@ function notifyDone() {
   }
 }
 
-export default function Chat({ projectId, sessionId, config }: Props) {
+export default function Chat({ projectId, sessionId, config, archived }: Props) {
   const [messages, setMessages] = useState<MessageItem[]>([])
   const [busy, setBusy] = useState(false)
   const [elapsed, setElapsed] = useState(0)
@@ -658,9 +659,11 @@ setInput('')
             }
           }}
           onKeyDown={onKeyDown}
-          placeholder="Сообщение агенту… (Enter — отправить, Shift+Enter — новая строка, перетащите файлы сюда)"
+          placeholder={archived ? 'Сессия в архиве — чтение доступно, ввод отключён' : 'Сообщение агенту… (Enter — отправить, Shift+Enter — новая строка, перетащите файлы сюда)'}
           rows={2}
+          disabled={archived}
         />
+        {!archived && (
         <div className="chat-input-actions">
           <button
             className="btn"
@@ -684,6 +687,7 @@ setInput('')
             </button>
           )}
         </div>
+        )}
       </div>
 
       {showFilePicker && (

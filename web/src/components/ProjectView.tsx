@@ -14,7 +14,7 @@ interface Props {
   onBack: () => void
   onChanged?: () => void
   externalSelectedId?: string | null
-  onSessionsUpdate?: (sessions: SessionInfo[], selectedId: string | null, busySessions: Set<string>, sessionConfig: Record<string, SessionConfig>) => void
+  onSessionsUpdate?: (sessions: SessionInfo[], selectedId: string | null, busySessions: Set<string>, sessionConfig: Record<string, SessionConfig>, archivedSessions: Record<string, boolean>) => void
   pendingSessionSettings?: string | null
   onClearPendingSessionSettings?: () => void
   pendingProjectSettings?: boolean
@@ -366,8 +366,8 @@ export default function ProjectView({ projectId, onBack, onChanged, externalSele
 
   // Notify parent about session changes
   useEffect(() => {
-    onSessionsUpdate?.(sessions, selectedId, busySessions, config?.sessionConfig || {})
-  }, [sessions, selectedId, busySessions, config?.sessionConfig, onSessionsUpdate])
+    onSessionsUpdate?.(sessions, selectedId, busySessions, config?.sessionConfig || {}, config?.archivedSessions || {})
+  }, [sessions, selectedId, busySessions, config?.sessionConfig, config?.archivedSessions, onSessionsUpdate])
 
   // Handle external session settings request from sidebar
   useEffect(() => {
@@ -409,7 +409,7 @@ export default function ProjectView({ projectId, onBack, onChanged, externalSele
           {project.running ? (
             selectedId ? (
               <div className="chat-full">
-                <Chat projectId={projectId} sessionId={selectedId} config={configFor(selectedId)} />
+                <Chat projectId={projectId} sessionId={selectedId} config={configFor(selectedId)} archived={archived} />
               </div>
             ) : (
               <div className="stopped">

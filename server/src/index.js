@@ -387,12 +387,29 @@ app.patch('/api/projects/:id', express.json({ limit: '10mb' }), asyncHandler(asy
   const project = registry.get(req.params.id)
   if (!project) return res.status(404).json({ error: 'Проект не найден' })
   if (req.body?.path) fs.mkdirSync(path.resolve(req.body.path), { recursive: true })
+  const wasArchived = project.archived
   const updated = registry.update(project.id, req.body || {})
   if (updated.archived) {
     try {
       await manager.stop(updated)
     } catch {
       /* сервер мог уже быть остановлен */
+    }
+    // Каскадная архивация: архивируем все сессии проекта
+    if (!wasArchived) {
+      try {
+        const sessions = await fetchOpenCode(updated, '/session')
+        const list = Array.isArray(sessions) ? sessions : []
+        for (const s of list) {
+          registry.setSessionArchived(updated.id, s.id, true)
+        }
+      } catch { /* ignore */ }
+    }
+  } else if (wasArchived && !updated.archived) {
+    // Каскадная разархивация: разархивируем все сессии проекта
+    const archived = registry.getArchivedSessions(updated.id)
+    for (const sid of Object.keys(archived)) {
+      registry.setSessionArchived(updated.id, sid, false)
     }
   }
   res.json({ project: { ...updated, ...manager.getStatus(updated) } })

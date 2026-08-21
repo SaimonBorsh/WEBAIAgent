@@ -16,9 +16,11 @@ export default function ProjectSettingsModal({ project, models, onDone, onClose 
   useEscape(onClose)
   const [agent, setAgent] = useState(project.defaultAgent || 'build')
   const [autoStart, setAutoStart] = useState(Boolean(project.autoStart))
+  const [idleTimeout, setIdleTimeout] = useState((project.idleTimeout ?? 30).toString())
   const [icon, setIcon] = useState(project.icon || '')
   const [iconTone, setIconTone] = useState<IconTone>(project.iconTone || 'auto')
   const [busy, setBusy] = useState(false)
+  const [restarting, setRestarting] = useState(false)
   const [error, setError] = useState('')
 
   const submit = async (e: React.FormEvent) => {
@@ -26,9 +28,11 @@ export default function ProjectSettingsModal({ project, models, onDone, onClose 
     setBusy(true)
     setError('')
     try {
+      const it = parseInt(idleTimeout, 10)
       await api.updateProject(project.id, {
         defaultAgent: agent,
         autoStart,
+        idleTimeout: Number.isFinite(it) ? it : 30,
         icon: icon || undefined,
         iconTone
       })
@@ -39,6 +43,20 @@ export default function ProjectSettingsModal({ project, models, onDone, onClose 
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setBusy(false)
+    }
+  }
+
+  const handleRestart = async () => {
+    setRestarting(true)
+    setError('')
+    try {
+      await api.restartProject(project.id)
+      onDone()
+      toast('Сервер перезапущен', 'success')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setRestarting(false)
     }
   }
 
@@ -63,6 +81,17 @@ export default function ProjectSettingsModal({ project, models, onDone, onClose 
           <span>Автоматически запускать сервер проекта при старте менеджера</span>
         </label>
 
+        <label className="field">
+          <span>Auto-stop при простое (минут, 0 = отключено)</span>
+          <select value={idleTimeout} onChange={(e) => setIdleTimeout(e.target.value)}>
+            <option value="0">Отключено</option>
+            <option value="15">15 минут</option>
+            <option value="30">30 минут</option>
+            <option value="60">1 час</option>
+            <option value="120">2 часа</option>
+          </select>
+        </label>
+
         <div className="settings-divider" />
 
         <span className="field-label">Значок проекта</span>
@@ -74,6 +103,11 @@ export default function ProjectSettingsModal({ project, models, onDone, onClose 
           <button type="button" className="btn" onClick={onClose}>
             Отмена
           </button>
+          {project.running && (
+            <button type="button" className="btn" disabled={restarting} onClick={() => void handleRestart()}>
+              {restarting ? 'Перезапуск…' : 'Перезапустить'}
+            </button>
+          )}
           <button type="submit" className="btn btn-primary" disabled={busy}>
             {busy ? 'Сохранение…' : 'Сохранить'}
           </button>

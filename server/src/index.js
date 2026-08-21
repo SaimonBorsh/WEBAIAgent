@@ -424,6 +424,14 @@ app.post('/api/projects/:id/stop', asyncHandler(async (req, res) => {
   res.json({ project: { ...project, ...manager.getStatus(project) } })
 }))
 
+app.post('/api/projects/:id/restart', asyncHandler(async (req, res) => {
+  const project = registry.get(req.params.id)
+  if (!project) return res.status(404).json({ error: 'Проект не найден' })
+  writeOpenCodeConfig()
+  const result = await manager.restart(project)
+  res.json({ project: { ...project, ...manager.getStatus(project) }, result })
+}))
+
 app.post('/api/projects/:id/init', express.json({ limit: '10mb' }), asyncHandler(async (req, res) => {
   const project = registry.get(req.params.id)
   if (!project) return res.status(404).json({ error: 'Проект не найден' })
@@ -540,6 +548,9 @@ app.use('/api/projects/:id', asyncHandler(async (req, res) => {
   if (!manager.isRunning(project.id)) {
     return res.status(409).json({ error: 'Сервер проекта остановлен. Нажмите «Запустить».' })
   }
+  if (req.method === 'POST' && /\/prompt_async$/.test(req.path)) {
+    manager.trackActivity(project.id)
+  }
   proxyToOpenCode(req, res, project)
 }))
 
@@ -574,6 +585,7 @@ const server = app.listen(MANAGER_PORT, BIND_HOST, async () => {
       })
     }
   }
+  manager.startIdleChecker((id) => registry.get(id))
 })
 
 const openBrowser = () => {

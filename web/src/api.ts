@@ -173,6 +173,7 @@ export const api = {
   deleteProject: (id: string) => request<{ ok: boolean }>(`/projects/${id}`, { method: 'DELETE' }),
   startProject: (id: string) => request<{ project: Project; result?: { started: boolean } }>(`/projects/${id}/start`, { method: 'POST' }),
   stopProject: (id: string) => request<{ project: Project }>(`/projects/${id}/stop`, { method: 'POST' }),
+  restartProject: (id: string) => request<{ project: Project; result?: { started: boolean } }>(`/projects/${id}/restart`, { method: 'POST' }),
   initProject: (id: string, data: { title?: string; prompt?: string; model?: string }) =>
     request<{ ok: boolean; sessionID?: string }>(`/projects/${id}/init`, {
       method: 'POST',

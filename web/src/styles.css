@@ -424,6 +424,12 @@ html[data-density='compact'] .message-body {
   border-color: var(--border);
 }
 
+.badge-danger {
+  color: var(--danger);
+  border-color: rgba(220, 80, 80, 0.45);
+  background: rgba(220, 80, 80, 0.08);
+}
+
 .badge-archived {
   color: var(--warn, #e8b84b);
   border-color: rgba(232, 184, 75, 0.45);
@@ -1691,6 +1697,10 @@ html[data-theme='light'] .chat-input {
 
 .sidebar-dot.running {
   background: var(--success);
+}
+
+.sidebar-dot.crashed {
+  background: var(--danger);
 }
 
 .sidebar-dot.ghost {

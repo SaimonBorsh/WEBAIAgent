@@ -91,7 +91,7 @@ export async function create({ name, path: projectPath, defaultModel, defaultAge
 export function update(id, patch) {
   const project = get(id)
   if (!project) return null
-  const allowed = ['name', 'path', 'defaultModel', 'defaultAgent', 'autoStart', 'archived', 'defaults', 'icon', 'iconTone']
+  const allowed = ['name', 'path', 'defaultModel', 'defaultAgent', 'autoStart', 'archived', 'defaults', 'icon', 'iconTone', 'idleTimeout']
   for (const key of allowed) {
     if (!(key in patch)) continue
     if (key === 'defaults') {
@@ -118,6 +118,11 @@ export function update(id, patch) {
     }
     if (key === 'iconTone') {
       project.iconTone = patch[key] === 'user' || patch[key] === 'system' ? patch[key] : 'auto'
+      continue
+    }
+    if (key === 'idleTimeout') {
+      const v = Number(patch[key])
+      project.idleTimeout = Number.isFinite(v) && v >= 0 ? Math.round(v) : 30
       continue
     }
     project[key] =

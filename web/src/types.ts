@@ -6,6 +6,7 @@ export interface Project {
   defaultModel: string
   defaultAgent: string
   autoStart: boolean
+  idleTimeout?: number
   defaults?: SessionConfig
   archived?: boolean
   icon?: string
@@ -13,6 +14,7 @@ export interface Project {
   createdAt: number
   updatedAt: number
   running: boolean
+  crashed?: boolean
 }
 
 export interface FreeModel {

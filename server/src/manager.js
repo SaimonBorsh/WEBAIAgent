@@ -8,6 +8,15 @@ import { BASE_DIR, DATA_DIR, INTERNAL_HOST, LOGS_DIR, OPENCODE_CONFIG_FILE } fro
 export const managerEvents = new EventEmitter()
 
 const running = new Map()
+const activity = new Map()
+const crashCounts = new Map()
+
+const MAX_CRASH_RETRIES = 3
+const CRASH_RESTART_DELAY_MS = 3000
+const IDLE_CHECK_INTERVAL_MS = 60_000
+const DEFAULT_IDLE_TIMEOUT_MIN = 30
+
+let idleTimer = null
 
 export function resolveExecutable() {
   const envExe = process.env.WEBAIA_OPENCODE
@@ -64,18 +73,31 @@ export function isRunning(projectId) {
 }
 
 export function getStatus(project) {
-  return { running: isRunning(project.id), port: project.port }
+  const entry = running.get(project.id)
+  const isRunning = Boolean(entry && entry.proc && entry.proc.exitCode === null)
+  const crashed = crashCounts.get(project.id) >= MAX_CRASH_RETRIES && !isRunning
+  return { running: isRunning, port: project.port, crashed }
 }
 
-export async function start(project) {
+export function trackActivity(projectId) {
+  activity.set(projectId, Date.now())
+}
+
+export function getLastActivity(projectId) {
+  return activity.get(projectId) || 0
+}
+
+export async function start(project, { silent = false } = {}) {
   if (isRunning(project.id)) return { started: false, reason: 'already' }
 
   if (!fs.existsSync(project.path)) {
-    throw new Error(`Папка проекта не существует: ${project.path}`)
+    if (!silent) throw new Error(`Папка проекта не существует: ${project.path}`)
+    return { started: false, reason: 'no-path' }
   }
 
   if (await healthCheck(project.port)) {
-    throw new Error(`Порт ${project.port} уже занят другим сервером opencode`)
+    if (!silent) throw new Error(`Порт ${project.port} уже занят другим сервером opencode`)
+    return { started: false, reason: 'port-busy' }
   }
 
   fs.mkdirSync(LOGS_DIR, { recursive: true })
@@ -98,17 +120,31 @@ export async function start(project) {
     env
   })
 
-  const entry = { proc, logStream }
+  const entry = { proc, logStream, idleTimeout: project.idleTimeout ?? DEFAULT_IDLE_TIMEOUT_MIN }
   running.set(project.id, entry)
+  trackActivity(project.id)
 
   proc.stdout?.pipe(logStream, { end: false })
   proc.stderr?.pipe(logStream, { end: false })
 
   const handleExit = (code) => {
-    if (running.get(project.id)?.proc === proc) {
-      running.delete(project.id)
-      logStream.end()
-      managerEvents.emit('status', { projectId: project.id, running: false, code })
+    if (running.get(project.id)?.proc !== proc) return
+    running.delete(project.id)
+    logStream.end()
+    managerEvents.emit('status', { projectId: project.id, running: false, code })
+
+    const retries = crashCounts.get(project.id) || 0
+    if (code !== 0 && code !== null && retries < MAX_CRASH_RETRIES) {
+      crashCounts.set(project.id, retries + 1)
+      console.log(`[manager] opencode для ${project.id} упал (code=${code}), перезапуск через ${CRASH_RESTART_DELAY_MS / 1000}с (попытка ${retries + 1}/${MAX_CRASH_RETRIES})`)
+      managerEvents.emit('status', { projectId: project.id, running: false, reason: 'restarting', attempt: retries + 1 })
+      setTimeout(() => {
+        start(project, { silent: true }).catch(() => {})
+      }, CRASH_RESTART_DELAY_MS)
+    } else if (code !== 0 && code !== null) {
+      crashCounts.set(project.id, MAX_CRASH_RETRIES)
+      console.log(`[manager] opencode для ${project.id} упал ${MAX_CRASH_RETRIES} раз, ручной запуск`)
+      managerEvents.emit('status', { projectId: project.id, running: false, reason: 'crashed' })
     }
   }
   proc.on('exit', handleExit)
@@ -122,9 +158,11 @@ export async function start(project) {
     running.delete(project.id)
     logStream.end()
     if (proc.exitCode === null) killProc(proc)
-    throw new Error('Сервер opencode не запустился за отведённое время. См. лог проекта.')
+    if (!silent) throw new Error('Сервер opencode не запустился за отведённое время. См. лог проекта.')
+    return { started: false, reason: 'health-timeout' }
   }
 
+  crashCounts.set(project.id, 0)
   managerEvents.emit('status', { projectId: project.id, running: true })
   return { started: true }
 }
@@ -153,6 +191,12 @@ export async function stop(project) {
   return { stopped: true }
 }
 
+export async function restart(project) {
+  await stop(project)
+  await new Promise((r) => setTimeout(r, 1000))
+  return start(project)
+}
+
 export function stopAll() {
   for (const [id, entry] of running) {
     killProc(entry.proc)
@@ -161,4 +205,31 @@ export function stopAll() {
 
 export function runningProjects() {
   return [...running.keys()]
+}
+
+export function startIdleChecker(getProjectFn) {
+  if (idleTimer) clearInterval(idleTimer)
+  idleTimer = setInterval(async () => {
+    const now = Date.now()
+    for (const [projectId, entry] of running) {
+      const timeout = entry.idleTimeout ?? DEFAULT_IDLE_TIMEOUT_MIN
+      if (timeout <= 0) continue
+      const last = activity.get(projectId) || 0
+      if (last > 0 && now - last > timeout * 60_000) {
+        console.log(`[manager] ${projectId} простаивает ${timeout} мин, останавливаю`)
+        const project = getProjectFn(projectId)
+        if (project) {
+          await stop(project)
+          managerEvents.emit('status', { projectId, running: false, reason: 'idle' })
+        }
+      }
+    }
+  }, IDLE_CHECK_INTERVAL_MS)
+}
+
+export function stopIdleChecker() {
+  if (idleTimer) {
+    clearInterval(idleTimer)
+    idleTimer = null
+  }
 }

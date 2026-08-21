@@ -232,6 +232,20 @@ export default function ProjectView({ projectId, onBack, onChanged }: Props) {
     }
   }
 
+  const restartProject = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      await api.restartProject(projectId)
+      await reload()
+      onChanged?.()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const doInit = async () => {
     if (!project) return
     if (!confirm('Проанализировать проект и создать AGENTS.md? Будет создана новая сессия.')) return
@@ -399,6 +413,8 @@ export default function ProjectView({ projectId, onBack, onChanged }: Props) {
         <div className="project-head-actions">
           {archived ? (
             <span className="badge badge-archived">в архиве</span>
+          ) : project.crashed ? (
+            <span className="badge badge-danger">упал</span>
           ) : project.running ? (
             <span className="badge badge-on">запущен</span>
           ) : (
@@ -407,6 +423,11 @@ export default function ProjectView({ projectId, onBack, onChanged }: Props) {
           <button className="btn" disabled={busy} onClick={() => void toggleStart()}>
             {project.running ? 'Остановить' : 'Запустить'}
           </button>
+          {project.running && (
+            <button className="btn" disabled={busy} onClick={() => void restartProject()} title="Перезапустить сервер">
+              ↻
+            </button>
+          )}
           <button className="btn" onClick={() => setShowSettings(true)} title="Настройки проекта">
             ⚙ Настройки
           </button>

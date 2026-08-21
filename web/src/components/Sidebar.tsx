@@ -98,6 +98,7 @@ function SidebarItem({
   onOpen: (id: string) => void
   archived?: boolean
 }) {
+  const dotClass = project.crashed ? 'crashed' : project.running ? 'running' : ''
   return (
     <button
       className={`sidebar-item ${current ? 'active' : ''} ${archived ? 'archived' : ''}`}
@@ -106,7 +107,7 @@ function SidebarItem({
     >
       <span className="sidebar-icon-wrap">
         <ProjectIcon project={project} size="sm" />
-        <span className={`sidebar-dot ${project.running ? 'running' : ''}`} aria-hidden />
+        <span className={`sidebar-dot ${dotClass}`} aria-hidden />
       </span>
       <span className="sidebar-name">{project.name}</span>
     </button>

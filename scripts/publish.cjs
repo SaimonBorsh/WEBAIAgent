@@ -236,9 +236,21 @@ async function main() {
   ensureDir(WEBAIA)
   ensureDir(VERSIONS)
   ensureDir(BIN)
-  ensureDir(DATA)
   ensureDir(CACHE)
+
+  // Чистим data/ от dev-данных перед сборкой
+  fs.rmSync(DATA, { recursive: true, force: true })
+  ensureDir(DATA)
   fs.writeFileSync(path.join(DATA, '.gitkeep'), 'Папка данных WEBAIAgent\n', 'utf8')
+
+  // Чистим versions/ от лишних файлов (tokens.json, uploads/ и т.д.)
+  try {
+    for (const f of fs.readdirSync(VERSIONS)) {
+      if (!/^v\d+/.test(f)) {
+        fs.rmSync(path.join(VERSIONS, f), { recursive: true, force: true })
+      }
+    }
+  } catch {}
 
   const verDir = path.join(VERSIONS, version)
 

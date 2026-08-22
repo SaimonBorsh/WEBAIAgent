@@ -5,7 +5,7 @@ import MessageBlock from './MessageBlock'
 import PermissionBar from './PermissionBar'
 import QuestionBar from './QuestionBar'
 import FolderPickerModal from './FolderPickerModal'
-import { getShowReasoning } from '../prefs'
+import { getShowReasoning, getAutoScroll, getSoundDone, getStreamingCursor } from '../prefs'
 import { toolTitle } from '../toolLabels'
 import { toast } from '../toast'
 
@@ -485,8 +485,8 @@ setInput('')
   }, [sessionId, loadMessages, pollActivity])
 
   useEffect(() => {
-    if (wasBusyRef.current && !busy && document.hidden) {
-      notifyDone()
+    if (wasBusyRef.current && !busy) {
+      if (getSoundDone()) notifyDone()
     }
     wasBusyRef.current = busy
   }, [busy])
@@ -502,7 +502,7 @@ setInput('')
   }, [busy])
 
   useEffect(() => {
-    if (!stickRef.current) return
+    if (!stickRef.current || !getAutoScroll()) return
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, busy, statusText, permissions])
 

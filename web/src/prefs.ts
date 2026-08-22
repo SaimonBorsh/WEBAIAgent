@@ -21,6 +21,14 @@ const PREF_SHOW_MODEL = 'webaia_show_model'
 const PREF_SHOW_TOKENS = 'webaia_show_tokens'
 const PREF_SHOW_REASONING = 'webaia_show_reasoning'
 const PREF_DENSITY = 'webaia_density'
+const PREF_AUTO_SCROLL = 'webaia_auto_scroll'
+const PREF_SOUND_DONE = 'webaia_sound_done'
+const PREF_CHAT_FONT_SIZE = 'webaia_chat_font_size'
+const PREF_SHOW_TIMESTAMPS = 'webaia_show_timestamps'
+const PREF_MSG_WIDTH = 'webaia_msg_width'
+const PREF_CODE_WRAP = 'webaia_code_wrap'
+const PREF_STREAMING_CURSOR = 'webaia_streaming_cursor'
+const PREF_AUTO_EXPAND_TOOL = 'webaia_auto_expand_tool'
 
 const media = window.matchMedia('(prefers-color-scheme: light)')
 
@@ -77,6 +85,80 @@ export function setDensity(d: string) {
 
 export function applyDensity() {
   document.documentElement.setAttribute('data-density', getDensity())
+}
+
+export function getAutoScroll(): boolean {
+  return get(PREF_AUTO_SCROLL) !== '0'
+}
+
+export function setAutoScroll(v: boolean) {
+  set(PREF_AUTO_SCROLL, v ? '1' : '0')
+}
+
+export function getSoundDone(): boolean {
+  return get(PREF_SOUND_DONE) !== '0'
+}
+
+export function setSoundDone(v: boolean) {
+  set(PREF_SOUND_DONE, v ? '1' : '0')
+}
+
+export function getChatFontSize(): string {
+  return get(PREF_CHAT_FONT_SIZE) || 'normal'
+}
+
+export function setChatFontSize(v: string) {
+  set(PREF_CHAT_FONT_SIZE, v)
+  document.documentElement.setAttribute('data-chat-font', v)
+}
+
+export function applyChatFontSize() {
+  document.documentElement.setAttribute('data-chat-font', getChatFontSize())
+}
+
+export function getShowTimestamps(): boolean {
+  return get(PREF_SHOW_TIMESTAMPS) === '1'
+}
+
+export function setShowTimestamps(v: boolean) {
+  set(PREF_SHOW_TIMESTAMPS, v ? '1' : '0')
+}
+
+export function getMsgWidth(): string {
+  return get(PREF_MSG_WIDTH) || 'normal'
+}
+
+export function setMsgWidth(v: string) {
+  set(PREF_MSG_WIDTH, v)
+  document.documentElement.setAttribute('data-msg-width', v)
+}
+
+export function applyMsgWidth() {
+  document.documentElement.setAttribute('data-msg-width', getMsgWidth())
+}
+
+export function getCodeWrap(): boolean {
+  return get(PREF_CODE_WRAP) === '1'
+}
+
+export function setCodeWrap(v: boolean) {
+  set(PREF_CODE_WRAP, v ? '1' : '0')
+}
+
+export function getStreamingCursor(): boolean {
+  return get(PREF_STREAMING_CURSOR) !== '0'
+}
+
+export function setStreamingCursor(v: boolean) {
+  set(PREF_STREAMING_CURSOR, v ? '1' : '0')
+}
+
+export function getAutoExpandTool(): boolean {
+  return get(PREF_AUTO_EXPAND_TOOL) === '1'
+}
+
+export function setAutoExpandTool(v: boolean) {
+  set(PREF_AUTO_EXPAND_TOOL, v ? '1' : '0')
 }
 
 export function subscribeThemeChange(onChange: () => void): () => void {

@@ -801,6 +801,34 @@ html[data-density='compact'] .message-body {
   color: var(--muted);
 }
 
+.message-time {
+  color: var(--muted);
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* Chat font size */
+
+html[data-chat-font='small'] .message-body {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+html[data-chat-font='large'] .message-body {
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+/* Message width */
+
+.message.max-narrow {
+  max-width: 640px;
+}
+
+.message.max-wide {
+  max-width: 1100px;
+}
+
 .streaming {
   color: var(--warn);
   animation: pulse 1.4s infinite;

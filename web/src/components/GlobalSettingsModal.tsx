@@ -12,7 +12,23 @@ import {
   getShowTokens,
   setShowTokens,
   getShowReasoning,
-  setShowReasoning
+  setShowReasoning,
+  getAutoScroll,
+  setAutoScroll,
+  getSoundDone,
+  setSoundDone,
+  getChatFontSize,
+  setChatFontSize,
+  getShowTimestamps,
+  setShowTimestamps,
+  getMsgWidth,
+  setMsgWidth,
+  getCodeWrap,
+  setCodeWrap,
+  getStreamingCursor,
+  setStreamingCursor,
+  getAutoExpandTool,
+  setAutoExpandTool
 } from '../prefs'
 import type { ThemePref } from '../prefs'
 import { useEscape } from '../useEscape'
@@ -48,6 +64,14 @@ export default function GlobalSettingsModal({ onClose }: Props) {
   const [showModel, setShowModelState] = useState(getShowModel())
   const [showTokens, setShowTokensState] = useState(getShowTokens())
   const [showReasoning, setShowReasoningState] = useState(getShowReasoning())
+  const [autoScroll, setAutoScrollState] = useState(getAutoScroll())
+  const [soundDone, setSoundDoneState] = useState(getSoundDone())
+  const [chatFontSize, setChatFontSizeState] = useState(getChatFontSize())
+  const [showTimestamps, setShowTimestampsState] = useState(getShowTimestamps())
+  const [msgWidth, setMsgWidthState] = useState(getMsgWidth())
+  const [codeWrap, setCodeWrapState] = useState(getCodeWrap())
+  const [streamingCursor, setStreamingCursorState] = useState(getStreamingCursor())
+  const [autoExpandTool, setAutoExpandToolState] = useState(getAutoExpandTool())
   const [openBrowser, setOpenBrowser] = useState(true)
   const [pwd1, setPwd1] = useState('')
   const [pwd2, setPwd2] = useState('')
@@ -168,6 +192,46 @@ export default function GlobalSettingsModal({ onClose }: Props) {
   const onShowReasoning = (v: boolean) => {
     setShowReasoningState(v)
     setShowReasoning(v)
+  }
+
+  const onAutoScroll = (v: boolean) => {
+    setAutoScrollState(v)
+    setAutoScroll(v)
+  }
+
+  const onSoundDone = (v: boolean) => {
+    setSoundDoneState(v)
+    setSoundDone(v)
+  }
+
+  const onChatFontSize = (v: string) => {
+    setChatFontSizeState(v)
+    setChatFontSize(v)
+  }
+
+  const onShowTimestamps = (v: boolean) => {
+    setShowTimestampsState(v)
+    setShowTimestamps(v)
+  }
+
+  const onMsgWidth = (v: string) => {
+    setMsgWidthState(v)
+    setMsgWidth(v)
+  }
+
+  const onCodeWrap = (v: boolean) => {
+    setCodeWrapState(v)
+    setCodeWrap(v)
+  }
+
+  const onStreamingCursor = (v: boolean) => {
+    setStreamingCursorState(v)
+    setStreamingCursor(v)
+  }
+
+  const onAutoExpandTool = (v: boolean) => {
+    setAutoExpandToolState(v)
+    setAutoExpandTool(v)
   }
 
   const saveServer = async (e: React.FormEvent) => {
@@ -348,6 +412,57 @@ export default function GlobalSettingsModal({ onClose }: Props) {
             <label className="check">
               <input type="checkbox" checked={showReasoning} onChange={(e) => onShowReasoning(e.target.checked)} />
               <span>Показывать рассуждения модели (что она «думает»)</span>
+            </label>
+
+            <div className="settings-divider" />
+            <h3 className="settings-subhead">Чат</h3>
+
+            <label className="check">
+              <input type="checkbox" checked={autoScroll} onChange={(e) => onAutoScroll(e.target.checked)} />
+              <span>Автоматический скролл к новым сообщениям</span>
+            </label>
+
+            <label className="check">
+              <input type="checkbox" checked={soundDone} onChange={(e) => onSoundDone(e.target.checked)} />
+              <span>Звуковое уведомление по окончании</span>
+            </label>
+
+            <label className="check">
+              <input type="checkbox" checked={showTimestamps} onChange={(e) => onShowTimestamps(e.target.checked)} />
+              <span>Показывать время сообщений</span>
+            </label>
+
+            <label className="check">
+              <input type="checkbox" checked={streamingCursor} onChange={(e) => onStreamingCursor(e.target.checked)} />
+              <span>Курсор стриминга (мигающий символ)</span>
+            </label>
+
+            <label className="check">
+              <input type="checkbox" checked={autoExpandTool} onChange={(e) => onAutoExpandTool(e.target.checked)} />
+              <span>Автоматически раскрывать результат инструмента</span>
+            </label>
+
+            <label className="check">
+              <input type="checkbox" checked={codeWrap} onChange={(e) => onCodeWrap(e.target.checked)} />
+              <span>Перенос строк в блоках кода</span>
+            </label>
+
+            <label className="field">
+              <span>Шрифт чата</span>
+              <select value={chatFontSize} onChange={(e) => onChatFontSize(e.target.value)}>
+                <option value="small">Маленький</option>
+                <option value="normal">Обычный</option>
+                <option value="large">Большой</option>
+              </select>
+            </label>
+
+            <label className="field">
+              <span>Ширина сообщений</span>
+              <select value={msgWidth} onChange={(e) => onMsgWidth(e.target.value)}>
+                <option value="narrow">Узкая (640px)</option>
+                <option value="normal">Обычная (860px)</option>
+                <option value="wide">Широкая (1100px)</option>
+              </select>
             </label>
           </div>
         )}

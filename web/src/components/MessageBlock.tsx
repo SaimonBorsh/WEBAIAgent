@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { MessageItem, ToolPart, FilePart, StepFinishPart, PatchPart, SubtaskPart, RetryPart, CompactionPart, Part } from '../types'
 import Markdown from '../md'
-import { getShowModel, getShowTokens, getShowReasoning } from '../prefs'
+import { getShowModel, getShowTokens, getShowReasoning, getShowTimestamps, getStreamingCursor, getAutoExpandTool, getMsgWidth } from '../prefs'
 import { toolTitle } from '../toolLabels'
 
 function fmtTokens(item: MessageItem): string {
@@ -18,7 +18,10 @@ function isImageMime(mime: string): boolean {
 }
 
 function ToolView({ part }: { part: ToolPart }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(() => {
+    if (getAutoExpandTool() && part.state.status === 'completed') return true
+    return false
+  })
   const status = part.state.status
   const isQuestion = part.tool === 'question'
   const icon =
@@ -234,12 +237,19 @@ export default function MessageBlock({
 
   const hasError = Boolean(info.error)
 
+  const widthClass = getMsgWidth() === 'narrow' ? 'max-narrow' : getMsgWidth() === 'wide' ? 'max-wide' : ''
+
   return (
-    <div className={`message ${isUser ? 'message-user' : 'message-assistant'}`}>
+    <div className={`message ${isUser ? 'message-user' : 'message-assistant'} ${widthClass}`}>
       <div className="message-meta">
         <span className="message-role">{isUser ? 'Вы' : 'Ассистент'}</span>
         {!isUser && info.modelID && getShowModel() && <span className="message-model">{info.modelID}</span>}
         {!isUser && getShowTokens() && fmtTokens(item) && <span className="message-tokens">{fmtTokens(item)}</span>}
+        {getShowTimestamps() && (
+          <span className="message-time">
+            {new Date(info.time.created).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )}
         {streaming && <span className="streaming">печатает…</span>}
         {canRetry && onRetry && (
           <button className="meta-btn" title="Повторить последний запрос" aria-label="Повторить последний запрос" onClick={onRetry}>
@@ -292,7 +302,7 @@ export default function MessageBlock({
           ))}
 
           {assistantText && (
-            <div className={streaming ? 'assistant-streaming' : ''}>
+            <div className={streaming && getStreamingCursor() ? 'assistant-streaming' : ''}>
               <Markdown text={assistantText} />
             </div>
           )}

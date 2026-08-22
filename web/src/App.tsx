@@ -8,7 +8,7 @@ import VersionsModal from './components/VersionsModal'
 import Sidebar from './components/Sidebar'
 import ToastContainer from './components/ToastContainer'
 import { api, getToken, setToken } from './api'
-import { applyTheme, applyDensity, subscribeThemeChange } from './prefs'
+import { applyTheme, applyDensity, applyChatFontSize, applyMsgWidth, subscribeThemeChange } from './prefs'
 import { toast } from './toast'
 import type { Project, SessionInfo, SessionConfig } from './types'
 
@@ -65,6 +65,8 @@ export default function App() {
   useEffect(() => {
     applyTheme()
     applyDensity()
+    applyChatFontSize()
+    applyMsgWidth()
     const unsubscribe = subscribeThemeChange(() => applyTheme())
     return unsubscribe
   }, [])

@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { getCodeWrap } from './prefs'
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -91,9 +92,11 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
     }
   }
 
+  const wrap = getCodeWrap()
+
   return (
     <div className="code-wrap">
-      <pre className="code-block">
+      <pre className="code-block" style={wrap ? { whiteSpace: 'pre-wrap', wordBreak: 'break-all' } : undefined}>
         {lang && <div className="code-lang">{lang}</div>}
         <code>{code}</code>
       </pre>

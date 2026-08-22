@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { MessageItem, ToolPart, FilePart, StepFinishPart, PatchPart, SubtaskPart, RetryPart, CompactionPart, StepStartPart, Part } from '../types'
 import Markdown from '../md'
-import { getShowModel, getShowTokens, getShowReasoning, getShowTimestamps, getStreamingCursor, getAutoExpandTool, getMsgWidth, getShowStepStart } from '../prefs'
+import { getShowModel, getShowTokens, getShowReasoning, getShowTimestamps, getStreamingCursor, getAutoExpandTool, getMsgWidth, getShowStepStart, getShowStepFinish } from '../prefs'
 import { toolTitle } from '../toolLabels'
 
 function fmtTokens(item: MessageItem): string {
@@ -237,7 +237,7 @@ export default function MessageBlock({
   const reasoningParts = showReasoningPref ? parts.filter((p) => p.type === 'reasoning') : []
   const toolParts = parts.filter((p) => p.type === 'tool') as ToolPart[]
   const fileParts = parts.filter((p) => p.type === 'file') as FilePart[]
-  const stepFinishParts = parts.filter((p) => p.type === 'step-finish') as StepFinishPart[]
+  const stepFinishParts = getShowStepFinish() ? (parts.filter((p) => p.type === 'step-finish') as StepFinishPart[]) : []
   const stepStartParts = getShowStepStart() ? (parts.filter((p) => p.type === 'step-start') as StepStartPart[]) : []
   const patchParts = parts.filter((p) => p.type === 'patch') as PatchPart[]
   const subtaskParts = parts.filter((p) => p.type === 'subtask') as SubtaskPart[]

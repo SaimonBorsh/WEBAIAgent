@@ -30,7 +30,9 @@ import {
   getAutoExpandTool,
   setAutoExpandTool,
   getShowStepStart,
-  setShowStepStart
+  setShowStepStart,
+  getShowStepFinish,
+  setShowStepFinish
 } from '../prefs'
 import type { ThemePref } from '../prefs'
 import { useEscape } from '../useEscape'
@@ -75,6 +77,7 @@ export default function GlobalSettingsModal({ onClose }: Props) {
   const [streamingCursor, setStreamingCursorState] = useState(getStreamingCursor())
   const [autoExpandTool, setAutoExpandToolState] = useState(getAutoExpandTool())
   const [showStepStart, setShowStepStartState] = useState(getShowStepStart())
+  const [showStepFinish, setShowStepFinishState] = useState(getShowStepFinish())
   const [openBrowser, setOpenBrowser] = useState(true)
   const [pwd1, setPwd1] = useState('')
   const [pwd2, setPwd2] = useState('')
@@ -240,6 +243,11 @@ export default function GlobalSettingsModal({ onClose }: Props) {
   const onShowStepStart = (v: boolean) => {
     setShowStepStartState(v)
     setShowStepStart(v)
+  }
+
+  const onShowStepFinish = (v: boolean) => {
+    setShowStepFinishState(v)
+    setShowStepFinish(v)
   }
 
   const saveServer = async (e: React.FormEvent) => {
@@ -458,6 +466,11 @@ export default function GlobalSettingsModal({ onClose }: Props) {
             <label className="check">
               <input type="checkbox" checked={showStepStart} onChange={(e) => onShowStepStart(e.target.checked)} />
               <span>Показывать границы шагов (step-start)</span>
+            </label>
+
+            <label className="check">
+              <input type="checkbox" checked={showStepFinish} onChange={(e) => onShowStepFinish(e.target.checked)} />
+              <span>Показывать итог шага (модель, токены, стоимость)</span>
             </label>
 
             <label className="field">

@@ -123,9 +123,10 @@ function isSeparatorRow(cells: string[]): boolean {
 function TableBlock({ rows, keyBase }: { rows: string[][]; keyBase: string }) {
   if (rows.length < 2) return <p className="md-p">{renderInline(rows.map((r) => r.join(' | ')).join('\n'), keyBase)}</p>
   const header = rows[0]
-  const body = rows.slice(1)
+  const isSep = rows.length > 1 && isSeparatorRow(rows[1])
+  const body = isSep ? rows.slice(2) : rows.slice(1)
   const alignments = header.map((_, colIdx) => {
-    const sep = rows[1]?.[colIdx] || ''
+    const sep = isSep ? (rows[1]?.[colIdx] || '') : ''
     if (sep.startsWith(':') && sep.endsWith(':')) return 'center' as const
     if (sep.endsWith(':')) return 'right' as const
     return 'left' as const

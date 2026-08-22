@@ -173,7 +173,69 @@ export interface ToolPart {
   }
 }
 
-export type Part = TextPart | ReasoningPart | ToolPart | { type: string; id?: string; sessionID?: string; messageID?: string; [k: string]: unknown }
+export interface FilePart {
+  type: 'file'
+  id: string
+  sessionID: string
+  messageID: string
+  mime: string
+  filename?: string
+  url: string
+  source?: string
+}
+
+export interface StepFinishPart {
+  type: 'step-finish'
+  id: string
+  sessionID: string
+  messageID: string
+  reason: string
+  cost: number
+  tokens: { input?: number; output?: number; reasoning?: number; cache?: { read?: number; write?: number } }
+  snapshot?: string
+}
+
+export interface PatchPart {
+  type: 'patch'
+  id: string
+  sessionID: string
+  messageID: string
+  hash: string
+  files: string[]
+}
+
+export interface SubtaskPart {
+  type: 'subtask'
+  id: string
+  sessionID: string
+  messageID: string
+  prompt: string
+  description?: string
+  agent?: string
+  model?: { providerID: string; modelID: string }
+}
+
+export interface RetryPart {
+  type: 'retry'
+  id: string
+  sessionID: string
+  messageID: string
+  attempt: number
+  error: { name?: string; message?: string }
+  time?: { start?: number; end?: number }
+}
+
+export interface CompactionPart {
+  type: 'compaction'
+  id: string
+  sessionID: string
+  messageID: string
+  auto: boolean
+  overflow?: boolean
+  tail_start_id?: string
+}
+
+export type Part = TextPart | ReasoningPart | ToolPart | FilePart | StepFinishPart | PatchPart | SubtaskPart | RetryPart | CompactionPart | { type: string; id?: string; sessionID?: string; messageID?: string; [k: string]: unknown }
 
 export interface MessageInfo {
   id: string

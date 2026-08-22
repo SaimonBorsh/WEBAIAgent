@@ -235,6 +235,207 @@ setInput('')
         }
         return
       }
+      if (event.type === 'message.part.delta' && p.sessionID === sessionId) {
+        lastPartAtRef.current = Date.now()
+        const partID = (p as { partID?: string }).partID
+        const msgID = p.messageID
+        const deltaText = p.delta
+        if (partID && msgID && deltaText) {
+          setMessages((prev) => {
+            const next = prev.map((msg) => {
+              if (msg.info.id !== msgID) return msg
+              const parts = msg.parts.map((part) => {
+                if (part.id !== partID) return part
+                if (part.type === 'text') return { ...part, text: (part as { text?: string }).text + deltaText }
+                if (part.type === 'reasoning') return { ...part, text: (part as { text?: string }).text + deltaText }
+                return part
+              })
+              return { ...msg, parts }
+            })
+            return next
+          })
+        }
+        return
+      }
+      if (event.type === 'message.part.removed' && p.sessionID === sessionId) {
+        lastPartAtRef.current = Date.now()
+        const partID = (p as { partID?: string }).partID || (p as { id?: string }).id
+        if (p.messageID && partID) {
+          setMessages((prev) => removePart(prev, p.messageID!, partID))
+        }
+        return
+      }
+      // session.next.* — fine-grained streaming (newer protocol)
+      if (event.type === 'session.next.text.delta' && p.sessionID === sessionId) {
+        lastPartAtRef.current = Date.now()
+        const msgID = (p as { assistantMessageID?: string }).assistantMessageID || p.messageID
+        const textID = (p as { textID?: string }).textID
+        const deltaText = p.delta
+        if (msgID && textID && deltaText) {
+          setMessages((prev) => {
+            const next = prev.map((msg) => {
+              if (msg.info.id !== msgID) return msg
+              let partFound = false
+              const parts = msg.parts.map((part) => {
+                if (part.id !== textID) return part
+                partFound = true
+                if (part.type === 'text') return { ...part, text: (part as { text?: string }).text + deltaText }
+                return part
+              })
+              if (!partFound) {
+                parts.push({ type: 'text', id: textID, sessionID: sessionId, messageID: msgID, text: deltaText } as Part)
+              }
+              return { ...msg, parts }
+            })
+            return next
+          })
+        }
+        return
+      }
+      if (event.type === 'session.next.reasoning.delta' && p.sessionID === sessionId) {
+        lastPartAtRef.current = Date.now()
+        const msgID = (p as { assistantMessageID?: string }).assistantMessageID || p.messageID
+        const reasoningID = (p as { reasoningID?: string }).reasoningID
+        const deltaText = p.delta
+        if (msgID && reasoningID && deltaText) {
+          setMessages((prev) => {
+            const next = prev.map((msg) => {
+              if (msg.info.id !== msgID) return msg
+              let partFound = false
+              const parts = msg.parts.map((part) => {
+                if (part.id !== reasoningID) return part
+                partFound = true
+                if (part.type === 'reasoning') return { ...part, text: (part as { text?: string }).text + deltaText }
+                return part
+              })
+              if (!partFound) {
+                parts.push({ type: 'reasoning', id: reasoningID, sessionID: sessionId, messageID: msgID, text: deltaText } as Part)
+              }
+              return { ...msg, parts }
+            })
+            return next
+          })
+        }
+        return
+      }
+      if (event.type === 'session.next.tool.input.delta' && p.sessionID === sessionId) {
+        lastPartAtRef.current = Date.now()
+        const msgID = (p as { assistantMessageID?: string }).assistantMessageID || p.messageID
+        const callID = (p as { callID?: string }).callID
+        const deltaText = p.delta
+        if (msgID && callID && deltaText) {
+          setMessages((prev) => {
+            const next = prev.map((msg) => {
+              if (msg.info.id !== msgID) return msg
+              const parts = msg.parts.map((part) => {
+                if (part.type !== 'tool' || (part as ToolPart).callID !== callID) return part
+                const tp = part as ToolPart
+                const input = tp.state.input || {}
+                return { ...tp, state: { ...tp.state, input: { ...input, _raw: ((input._raw as string) || '') + deltaText } } } as Part
+              })
+              return { ...msg, parts }
+            })
+            return next
+          })
+        }
+        return
+      }
+      if (event.type === 'session.next.tool.called' && p.sessionID === sessionId) {
+        lastPartAtRef.current = Date.now()
+        const msgID = (p as { assistantMessageID?: string }).assistantMessageID || p.messageID
+        const callID = (p as { callID?: string }).callID
+        const toolName = (p as { tool?: string }).tool
+        const toolInput = (p as { input?: Record<string, unknown> }).input
+        if (msgID && callID && toolName) {
+          setMessages((prev) => {
+            const next = prev.map((msg) => {
+              if (msg.info.id !== msgID) return msg
+              const existing = msg.parts.find((part) => part.type === 'tool' && (part as ToolPart).callID === callID)
+              if (existing) return msg
+              return {
+                ...msg,
+                parts: [...msg.parts, {
+                  type: 'tool', id: callID, sessionID: sessionId, messageID: msgID,
+                  callID, tool: toolName,
+                  state: { status: 'running', input: toolInput || {}, time: { start: Date.now() } }
+                } as Part]
+              }
+            })
+            return next
+          })
+        }
+        return
+      }
+      if (event.type === 'session.next.tool.success' && p.sessionID === sessionId) {
+        lastPartAtRef.current = Date.now()
+        const msgID = (p as { assistantMessageID?: string }).assistantMessageID || p.messageID
+        const callID = (p as { callID?: string }).callID
+        const output = (p as { content?: string }).content || (p as { structured?: string }).structured
+        if (msgID && callID) {
+          setMessages((prev) => {
+            const next = prev.map((msg) => {
+              if (msg.info.id !== msgID) return msg
+              const parts = msg.parts.map((part) => {
+                if (part.type !== 'tool' || (part as ToolPart).callID !== callID) return part
+                const tp = part as ToolPart
+                return { ...tp, state: { ...tp.state, status: 'completed', output: typeof output === 'string' ? output : JSON.stringify(output), time: { ...tp.state.time, end: Date.now() } } } as Part
+              })
+              return { ...msg, parts }
+            })
+            return next
+          })
+        }
+        return
+      }
+      if (event.type === 'session.next.tool.failed' && p.sessionID === sessionId) {
+        lastPartAtRef.current = Date.now()
+        const msgID = (p as { assistantMessageID?: string }).assistantMessageID || p.messageID
+        const callID = (p as { callID?: string }).callID
+        const errMsg = (p as { error?: string }).error
+        if (msgID && callID) {
+          setMessages((prev) => {
+            const next = prev.map((msg) => {
+              if (msg.info.id !== msgID) return msg
+              const parts = msg.parts.map((part) => {
+                if (part.type !== 'tool' || (part as ToolPart).callID !== callID) return part
+                const tp = part as ToolPart
+                return { ...tp, state: { ...tp.state, status: 'error', error: errMsg || 'Tool failed', time: { ...tp.state.time, end: Date.now() } } } as Part
+              })
+              return { ...msg, parts }
+            })
+            return next
+          })
+        }
+        return
+      }
+      if (event.type === 'session.next.step.started' && p.sessionID === sessionId) {
+        lastPartAtRef.current = Date.now()
+        return
+      }
+      if (event.type === 'session.next.step.ended' && p.sessionID === sessionId) {
+        lastPartAtRef.current = Date.now()
+        const msgID = (p as { assistantMessageID?: string }).assistantMessageID || p.messageID
+        if (msgID) {
+          const cost = (p as { cost?: number }).cost || 0
+          const tokens = (p as { tokens?: Record<string, number> }).tokens
+          setMessages((prev) => {
+            const next = prev.map((msg) => {
+              if (msg.info.id !== msgID) return msg
+              return {
+                ...msg,
+                parts: [...msg.parts, {
+                  type: 'step-finish', id: `sf-${msgID}`, sessionID: sessionId, messageID: msgID,
+                  reason: (p as { finish?: string }).finish || 'stop',
+                  cost,
+                  tokens: tokens || {}
+                } as Part]
+              }
+            })
+            return next
+          })
+        }
+        return
+      }
       if (event.type === 'message.updated' && p.sessionID === sessionId && p.info) {
         lastPartAtRef.current = Date.now()
         setMessages((prev) => upsertMessage(prev, p.info as MessageInfo))
@@ -735,18 +936,16 @@ function applyPart(prev: MessageItem[], part: Part, delta?: string): MessageItem
       if (delta && p.type === 'text' && part.type === 'text') {
         return { ...p, text: (p as { text?: string }).text + delta }
       }
+      if (delta && p.type === 'reasoning' && part.type === 'reasoning') {
+        return { ...p, text: (p as { text?: string }).text + delta }
+      }
       return part
     })
     if (!partFound) {
-      const dupIdx = parts.findIndex(
-        (p) =>
-          p.type === part.type &&
-          'text' in p &&
-          'text' in part &&
-          (p as { text?: string }).text === (part as { text?: string }).text
-      )
-      if (dupIdx >= 0) {
-        parts[dupIdx] = part
+      if (delta && part.type === 'text') {
+        parts.push({ ...part, text: delta } as Part)
+      } else if (delta && part.type === 'reasoning') {
+        parts.push({ ...part, text: delta } as Part)
       } else {
         parts.push(part)
       }
@@ -754,6 +953,13 @@ function applyPart(prev: MessageItem[], part: Part, delta?: string): MessageItem
     return { ...msg, parts }
   })
   return found ? next : prev
+}
+
+function removePart(prev: MessageItem[], messageID: string, partID: string): MessageItem[] {
+  return prev.map((msg) => {
+    if (msg.info.id !== messageID) return msg
+    return { ...msg, parts: msg.parts.filter((p) => p.id !== partID) }
+  })
 }
 
 function upsertMessage(prev: MessageItem[], info: MessageInfo): MessageItem[] {

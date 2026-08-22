@@ -1,14 +1,8 @@
 import { useState } from 'react'
-import type { MessageItem, ToolPart } from '../types'
+import type { MessageItem, ToolPart, FilePart, StepFinishPart, PatchPart, SubtaskPart, RetryPart, CompactionPart, Part } from '../types'
 import Markdown from '../md'
 import { getShowModel, getShowTokens, getShowReasoning } from '../prefs'
 import { toolTitle } from '../toolLabels'
-
-interface FilePart {
-  id: string
-  filename?: string
-  url: string
-}
 
 function fmtTokens(item: MessageItem): string {
   const t = item.info.tokens
@@ -17,6 +11,10 @@ function fmtTokens(item: MessageItem): string {
   if (t.input) parts.push(`вход ${t.input}`)
   if (t.output) parts.push(`выход ${t.output}`)
   return parts.join(' · ')
+}
+
+function isImageMime(mime: string): boolean {
+  return /^image\/(png|jpe?g|gif|webp|svg\+xml|bmp|ico)/.test(mime)
 }
 
 function ToolView({ part }: { part: ToolPart }) {
@@ -66,6 +64,143 @@ function ToolView({ part }: { part: ToolPart }) {
   )
 }
 
+function FilePartView({ part }: { part: FilePart }) {
+  const isImg = isImageMime(part.mime)
+  return (
+    <div className="file-part">
+      {isImg ? (
+        <div className="file-part-image">
+          <img src={part.url} alt={part.filename || 'image'} loading="lazy" />
+          {part.filename && <span className="file-part-name">{part.filename}</span>}
+        </div>
+      ) : (
+        <div className="attachment-chip static">
+          📎 {part.filename || part.url}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StepFinishView({ part }: { part: StepFinishPart }) {
+  const [open, setOpen] = useState(false)
+  const t = part.tokens
+  const tokenParts: string[] = []
+  if (t?.input) tokenParts.push(`вход: ${t.input}`)
+  if (t?.output) tokenParts.push(`выход: ${t.output}`)
+  if (t?.reasoning) tokenParts.push(`рассуждение: ${t.reasoning}`)
+  if (t?.cache?.read) tokenParts.push(`кэш чтение: ${t.cache.read}`)
+  if (t?.cache?.write) tokenParts.push(`кэш запись: ${t.cache.write}`)
+  const costStr = part.cost ? `${part.cost.toFixed(4)} $` : null
+  const reasonLabel: Record<string, string> = {
+    stop: 'Завершено',
+    length: 'Достигнут лимит токенов',
+    content_filter: 'Фильтр контента',
+    error: 'Ошибка'
+  }
+  return (
+    <div className="step-finish">
+      <button className="step-finish-head" onClick={() => setOpen(!open)}>
+        <span className="step-finish-icon">●</span>
+        <span className="step-finish-label">{reasonLabel[part.reason] || part.reason}</span>
+        {tokenParts.length > 0 && <span className="step-finish-tokens">{tokenParts.join(' · ')}</span>}
+        {costStr && <span className="step-finish-cost">{costStr}</span>}
+        <span className="tool-toggle">{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <div className="step-finish-body">
+          {tokenParts.length > 0 && <div>Токены: {tokenParts.join(', ')}</div>}
+          {costStr && <div>Стоимость: {costStr}</div>}
+          <div>Причина: {part.reason}</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PatchView({ part }: { part: PatchPart }) {
+  const [open, setOpen] = useState(false)
+  if (!part.files || part.files.length === 0) return null
+  return (
+    <div className="patch-part">
+      <button className="patch-head" onClick={() => setOpen(!open)}>
+        <span className="patch-icon">📝</span>
+        <span className="patch-label">Изменения ({part.files.length} файлов)</span>
+        <span className="tool-toggle">{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <div className="patch-body">
+          {part.files.map((f) => (
+            <div key={f} className="patch-file">{f}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SubtaskView({ part }: { part: SubtaskPart }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="subtask-part">
+      <button className="subtask-head" onClick={() => setOpen(!open)}>
+        <span className="subtask-icon">🔀</span>
+        <span className="subtask-label">{part.description || 'Подзадача'}</span>
+        {part.agent && <span className="subtask-agent">{part.agent}</span>}
+        <span className="tool-toggle">{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <div className="subtask-body">
+          <div className="subtask-prompt">{part.prompt}</div>
+          {part.model && <div className="subtask-model">{part.model.providerID}/{part.model.modelID}</div>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RetryView({ part }: { part: RetryPart }) {
+  return (
+    <div className="retry-part">
+      <span className="retry-icon">🔄</span>
+      <span className="retry-label">
+        Повтор {part.attempt}: {part.error?.message || part.error?.name || 'неизвестная ошибка'}
+      </span>
+    </div>
+  )
+}
+
+function CompactionView({ part }: { part: CompactionPart }) {
+  return (
+    <div className="compaction-part">
+      <span className="compaction-icon">📦</span>
+      <span className="compaction-label">
+        {part.auto ? 'Автоматическое сжатие контекста' : 'Сжатие контекста'}
+        {part.overflow && ' (переполнение)'}
+      </span>
+    </div>
+  )
+}
+
+function UnknownPartView({ part }: { part: Part }) {
+  const [open, setOpen] = useState(false)
+  const data = JSON.stringify(part, null, 2)
+  return (
+    <div className="unknown-part">
+      <button className="unknown-head" onClick={() => setOpen(!open)}>
+        <span className="unknown-icon">❓</span>
+        <span className="unknown-label">{part.type}</span>
+        <span className="tool-toggle">{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <pre className="unknown-body">
+          <code>{data}</code>
+        </pre>
+      )}
+    </div>
+  )
+}
+
 export default function MessageBlock({
   item,
   streaming,
@@ -89,7 +224,13 @@ export default function MessageBlock({
   const assistantText = assistantTextParts.map((p) => (p as { text?: string }).text || '').join('\n')
   const reasoningParts = parts.filter((p) => p.type === 'reasoning')
   const toolParts = parts.filter((p) => p.type === 'tool') as ToolPart[]
-  const fileParts = parts.filter((p) => p.type === 'file') as unknown as FilePart[]
+  const fileParts = parts.filter((p) => p.type === 'file') as FilePart[]
+  const stepFinishParts = parts.filter((p) => p.type === 'step-finish') as StepFinishPart[]
+  const patchParts = parts.filter((p) => p.type === 'patch') as PatchPart[]
+  const subtaskParts = parts.filter((p) => p.type === 'subtask') as SubtaskPart[]
+  const retryParts = parts.filter((p) => p.type === 'retry') as RetryPart[]
+  const compactionParts = parts.filter((p) => p.type === 'compaction') as CompactionPart[]
+  const unknownParts = parts.filter((p) => !['text', 'reasoning', 'tool', 'file', 'step-finish', 'patch', 'subtask', 'retry', 'compaction'].includes(p.type))
 
   const hasError = Boolean(info.error)
 
@@ -110,9 +251,7 @@ export default function MessageBlock({
       {isUser ? (
         <div className="message-body">
           {fileParts.map((p) => (
-            <div key={p.id} className="attachment-chip static">
-              📎 {p.filename || p.url}
-            </div>
+            <FilePartView key={p.id} part={p} />
           ))}
           {userText && <Markdown text={userText} />}
         </div>
@@ -124,12 +263,32 @@ export default function MessageBlock({
             </div>
           )}
 
+          {retryParts.map((p) => (
+            <RetryView key={p.id} part={p} />
+          ))}
+
+          {compactionParts.map((p) => (
+            <CompactionView key={p.id} part={p} />
+          ))}
+
           {reasoningParts.map((p) => (
             <ReasoningBlock key={p.id} text={(p as { text?: string }).text || ''} defaultOpen={getShowReasoning()} />
           ))}
 
+          {subtaskParts.map((p) => (
+            <SubtaskView key={p.id} part={p} />
+          ))}
+
           {toolParts.map((p) => (
             <ToolView key={p.id} part={p} />
+          ))}
+
+          {patchParts.map((p) => (
+            <PatchView key={p.id} part={p} />
+          ))}
+
+          {fileParts.map((p) => (
+            <FilePartView key={p.id} part={p} />
           ))}
 
           {assistantText && (
@@ -138,7 +297,15 @@ export default function MessageBlock({
             </div>
           )}
 
-          {!assistantText && !toolParts.length && !reasoningParts.length && !hasError && (
+          {stepFinishParts.map((p) => (
+            <StepFinishView key={p.id} part={p} />
+          ))}
+
+          {unknownParts.map((p) => (
+            <UnknownPartView key={p.id || p.type} part={p} />
+          ))}
+
+          {!assistantText && !toolParts.length && !reasoningParts.length && !hasError && !stepFinishParts.length && !compactionParts.length && !retryParts.length && !patchParts.length && !subtaskParts.length && !unknownParts.length && (
             <div className="muted">
               {streaming ? '…' : 'Ответ пуст'}
             </div>

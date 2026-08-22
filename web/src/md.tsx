@@ -121,6 +121,21 @@ function isSeparatorRow(cells: string[]): boolean {
   return cells.every((c) => /^\s*:?\-+:?\s*$/.test(c))
 }
 
+function isPipelessTableRow(line: string): boolean {
+  if (/^\s*$/.test(line)) return false
+  if (/^\s*\|/.test(line)) return false
+  return /\t/.test(line) || /  /.test(line)
+}
+
+function parsePipelessTableRow(line: string): string[] {
+  if (/\t/.test(line)) return line.split('\t').map((c) => c.trim())
+  return line.split(/\s{2,}/).map((c) => c.trim())
+}
+
+function isPipelessSeparator(line: string): boolean {
+  return /^\s*:?-{2,}:?(\s+\t|\t|\s{2,}:?\-+:?)*\s*$/.test(line) && /\t/.test(line) || /^\s*:?\-+\s+(\t|\s{2,}):?\-+/.test(line)
+}
+
 function TableBlock({ rows, keyBase }: { rows: string[][]; keyBase: string }) {
   if (rows.length < 2) return <p className="md-p">{renderInline(rows.map((r) => r.join(' | ')).join('\n'), keyBase)}</p>
   const header = rows[0]
@@ -222,6 +237,29 @@ export default function Markdown({ text }: { text: string }) {
       blocks.push(
         <TableBlock key={`t${blockIndex++}`} rows={tableRows} keyBase={`t${blockIndex}`} />
       )
+      continue
+    }
+
+    if (isPipelessTableRow(line) && i + 1 < lines.length && isPipelessSeparator(lines[i + 1])) {
+      flushParagraph()
+      const tableRows: string[][] = []
+      tableRows.push(parsePipelessTableRow(lines[i]))
+      i++
+      while (i < lines.length && isPipelessSeparator(lines[i])) {
+        tableRows.push(parsePipelessTableRow(lines[i]))
+        i++
+      }
+      while (i < lines.length && isPipelessTableRow(lines[i]) && !isPipelessSeparator(lines[i])) {
+        tableRows.push(parsePipelessTableRow(lines[i]))
+        i++
+      }
+      if (tableRows.length >= 2) {
+        blocks.push(
+          <TableBlock key={`t${blockIndex++}`} rows={tableRows} keyBase={`t${blockIndex}`} />
+        )
+      } else {
+        tableRows.forEach((r) => paragraph.push(r.join('  ')))
+      }
       continue
     }
 

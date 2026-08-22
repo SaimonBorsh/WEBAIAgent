@@ -104,6 +104,61 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
   )
 }
 
+function isTableRow(line: string): boolean {
+  return /^\s*\|/.test(line)
+}
+
+function parseTableRow(line: string): string[] {
+  return line
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((cell) => cell.trim())
+}
+
+function isSeparatorRow(cells: string[]): boolean {
+  return cells.every((c) => /^:?-+:?$/.test(c))
+}
+
+function TableBlock({ rows, keyBase }: { rows: string[][]; keyBase: string }) {
+  if (rows.length < 2) return <p className="md-p">{renderInline(rows.map((r) => r.join(' | ')).join('\n'), keyBase)}</p>
+  const header = rows[0]
+  const body = rows.slice(1)
+  const alignments = header.map((_, colIdx) => {
+    const sep = rows[1]?.[colIdx] || ''
+    if (sep.startsWith(':') && sep.endsWith(':')) return 'center' as const
+    if (sep.endsWith(':')) return 'right' as const
+    return 'left' as const
+  })
+
+  return (
+    <div className="md-table-wrap">
+      <table className="md-table">
+        <thead>
+          <tr>
+            {header.map((cell, ci) => (
+              <th key={ci} style={{ textAlign: alignments[ci] }}>
+                {renderInline(cell, `${keyBase}-th-${ci}`)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {body.map((row, ri) => (
+            <tr key={ri}>
+              {row.map((cell, ci) => (
+                <td key={ci} style={{ textAlign: alignments[ci] }}>
+                  {renderInline(cell, `${keyBase}-td-${ri}-${ci}`)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 export default function Markdown({ text }: { text: string }) {
   const lines = text.split('\n')
   const blocks: React.ReactNode[] = []
@@ -152,6 +207,19 @@ export default function Markdown({ text }: { text: string }) {
         </Tag>
       )
       i++
+      continue
+    }
+
+    if (isTableRow(line)) {
+      flushParagraph()
+      const tableRows: string[][] = []
+      while (i < lines.length && isTableRow(lines[i])) {
+        tableRows.push(parseTableRow(lines[i]))
+        i++
+      }
+      blocks.push(
+        <TableBlock key={`t${blockIndex++}`} rows={tableRows} keyBase={`t${blockIndex}`} />
+      )
       continue
     }
 

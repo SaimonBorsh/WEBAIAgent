@@ -814,30 +814,35 @@ html[data-density='compact'] .message-body {
 .message-body {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px 16px;
+  border-radius: 16px;
+  padding: 14px 18px;
   max-width: 100%;
   overflow-wrap: break-word;
+  line-height: 1.6;
 }
 
 .message-assistant .message-body {
-  background: rgba(107, 118, 140, 0.08);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  background: rgba(107, 118, 140, 0.06);
+  border-color: rgba(107, 118, 140, 0.12);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
 .message-user .message-body {
-  background: rgba(79, 140, 255, 0.12);
-  border-color: rgba(79, 140, 255, 0.35);
+  background: rgba(79, 140, 255, 0.1);
+  border-color: rgba(79, 140, 255, 0.25);
+  box-shadow: 0 1px 4px rgba(79, 140, 255, 0.08);
 }
 
 html[data-theme='light'] .message-assistant .message-body {
-  background: rgba(30, 40, 60, 0.05);
-  box-shadow: 0 2px 10px rgba(20, 30, 50, 0.08);
+  background: rgba(30, 40, 60, 0.04);
+  border-color: rgba(20, 30, 50, 0.1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 html[data-theme='light'] .message-user .message-body {
-  background: rgba(37, 99, 235, 0.08);
-  border-color: rgba(37, 99, 235, 0.3);
+  background: rgba(37, 99, 235, 0.06);
+  border-color: rgba(37, 99, 235, 0.2);
+  box-shadow: 0 1px 4px rgba(37, 99, 235, 0.06);
 }
 
 .assistant-streaming .md-p:last-child::after {
@@ -854,9 +859,13 @@ html[data-theme='light'] .message-user .message-body {
 .status-line {
   color: var(--warn);
   font-size: 13px;
-  padding: 8px 12px;
-  background: rgba(245, 166, 35, 0.08);
-  border-radius: 8px;
+  padding: 8px 14px;
+  background: rgba(245, 166, 35, 0.06);
+  border: 1px solid rgba(245, 166, 35, 0.15);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .status-line-danger {
@@ -920,13 +929,39 @@ html[data-theme='light'] .message-user .message-body {
 .code-block {
   background: #0b0e13;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: 10px;
+  padding: 14px 16px;
   overflow-x: auto;
   font-family: var(--mono);
   font-size: 12.5px;
-  line-height: 1.5;
+  line-height: 1.6;
   margin: 8px 0;
+  position: relative;
+}
+
+.code-wrap {
+  position: relative;
+}
+
+.code-copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  z-index: 1;
+}
+
+.code-copy:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text);
 }
 
 .code-lang {
@@ -946,6 +981,71 @@ html[data-theme='light'] .message-user .message-body {
   font-size: 12.5px;
 }
 
+/* Tables */
+
+.md-table-wrap {
+  overflow-x: auto;
+  margin: 8px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.md-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.md-table th,
+.md-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.md-table th {
+  background: var(--surface-1);
+  font-weight: 600;
+  color: var(--text);
+  position: sticky;
+  top: 0;
+}
+
+.md-table td {
+  color: var(--text);
+}
+
+.md-table tr:last-child td {
+  border-bottom: none;
+}
+
+.md-table tbody tr:hover {
+  background: rgba(79, 140, 255, 0.04);
+}
+
+.md-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+html[data-theme='light'] .md-table {
+  border-color: rgba(20, 30, 50, 0.15);
+}
+
+html[data-theme='light'] .md-table th,
+html[data-theme='light'] .md-table td {
+  border-color: rgba(20, 30, 50, 0.1);
+}
+
+html[data-theme='light'] .md-table th {
+  background: rgba(20, 30, 50, 0.04);
+}
+
+html[data-theme='light'] .md-table tbody tr:hover {
+  background: rgba(20, 30, 50, 0.02);
+}
+
 .message-body a {
   color: var(--accent);
   text-decoration: none;
@@ -959,9 +1059,10 @@ html[data-theme='light'] .message-user .message-body {
 
 .reasoning {
   border: 1px dashed var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   margin-bottom: 8px;
   background: var(--surface-1);
+  overflow: hidden;
 }
 
 .reasoning-head {
@@ -971,33 +1072,46 @@ html[data-theme='light'] .message-user .message-body {
   cursor: pointer;
   font-family: inherit;
   font-size: 12px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   display: flex;
   align-items: center;
   gap: 6px;
   width: 100%;
+  transition: background 0.15s;
+}
+
+.reasoning-head:hover {
+  background: rgba(107, 118, 140, 0.06);
 }
 
 .reasoning-body {
-  padding: 0 12px 10px;
+  padding: 0 14px 12px;
   color: var(--muted);
   font-size: 13px;
+  line-height: 1.5;
 }
 
 .tool {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   margin-bottom: 8px;
   background: var(--surface-1);
   overflow: hidden;
+  transition: border-color 0.2s;
 }
 
 .tool.running {
   border-color: rgba(245, 166, 35, 0.5);
+  box-shadow: 0 0 0 1px rgba(245, 166, 35, 0.1);
+}
+
+.tool.completed {
+  border-color: rgba(56, 193, 114, 0.3);
 }
 
 .tool.error {
   border-color: rgba(255, 92, 108, 0.5);
+  box-shadow: 0 0 0 1px rgba(255, 92, 108, 0.1);
 }
 
 .tool-head {
@@ -1007,11 +1121,16 @@ html[data-theme='light'] .message-user .message-body {
   cursor: pointer;
   font-family: inherit;
   font-size: 12.5px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
+  transition: background 0.15s;
+}
+
+.tool-head:hover {
+  background: rgba(107, 118, 140, 0.06);
 }
 
 .tool-icon {
@@ -2541,32 +2660,6 @@ html[data-theme='light'] .chat-input {
   .picker-path .btn {
     align-self: stretch;
   }
-}
-
-/* Code copy button */
-
-.code-wrap {
-  position: relative;
-}
-
-.code-wrap .code-copy {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  padding: 3px 9px;
-  font-size: 11.5px;
-  line-height: 1.5;
-  background: rgba(127, 127, 127, 0.18);
-  color: var(--text);
-  border: 1px solid rgba(127, 127, 127, 0.3);
-  border-radius: 6px;
-  cursor: pointer;
-  opacity: 0.75;
-}
-
-.code-wrap .code-copy:hover {
-  opacity: 1;
-  background: rgba(127, 127, 127, 0.3);
 }
 
 /* Toasts */

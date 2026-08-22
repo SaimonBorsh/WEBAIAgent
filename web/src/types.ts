@@ -235,7 +235,15 @@ export interface CompactionPart {
   tail_start_id?: string
 }
 
-export type Part = TextPart | ReasoningPart | ToolPart | FilePart | StepFinishPart | PatchPart | SubtaskPart | RetryPart | CompactionPart | { type: string; id?: string; sessionID?: string; messageID?: string; [k: string]: unknown }
+export interface StepStartPart {
+  type: 'step-start'
+  id: string
+  sessionID: string
+  messageID: string
+  snapshot?: string
+}
+
+export type Part = TextPart | ReasoningPart | ToolPart | FilePart | StepFinishPart | PatchPart | SubtaskPart | RetryPart | CompactionPart | StepStartPart | { type: string; id?: string; sessionID?: string; messageID?: string; [k: string]: unknown }
 
 export interface MessageInfo {
   id: string

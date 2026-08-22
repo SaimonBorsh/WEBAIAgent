@@ -1223,6 +1223,22 @@ html[data-theme='light'] .md-table tbody tr:hover {
   color: var(--muted);
 }
 
+/* Step start */
+
+.step-start-part {
+  display: flex;
+  align-items: center;
+  padding: 2px 0;
+  margin-bottom: 4px;
+}
+
+.step-start-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+  opacity: 0.5;
+}
+
 /* Step finish */
 
 .step-finish {

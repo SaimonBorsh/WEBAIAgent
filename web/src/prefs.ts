@@ -29,6 +29,7 @@ const PREF_MSG_WIDTH = 'webaia_msg_width'
 const PREF_CODE_WRAP = 'webaia_code_wrap'
 const PREF_STREAMING_CURSOR = 'webaia_streaming_cursor'
 const PREF_AUTO_EXPAND_TOOL = 'webaia_auto_expand_tool'
+const PREF_SHOW_STEP_START = 'webaia_show_step_start'
 
 const media = window.matchMedia('(prefers-color-scheme: light)')
 
@@ -159,6 +160,14 @@ export function getAutoExpandTool(): boolean {
 
 export function setAutoExpandTool(v: boolean) {
   set(PREF_AUTO_EXPAND_TOOL, v ? '1' : '0')
+}
+
+export function getShowStepStart(): boolean {
+  return get(PREF_SHOW_STEP_START) === '1'
+}
+
+export function setShowStepStart(v: boolean) {
+  set(PREF_SHOW_STEP_START, v ? '1' : '0')
 }
 
 export function subscribeThemeChange(onChange: () => void): () => void {

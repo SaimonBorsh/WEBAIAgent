@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import type { MessageItem, ToolPart, FilePart, StepFinishPart, PatchPart, SubtaskPart, RetryPart, CompactionPart, Part } from '../types'
+import type { MessageItem, ToolPart, FilePart, StepFinishPart, PatchPart, SubtaskPart, RetryPart, CompactionPart, StepStartPart, Part } from '../types'
 import Markdown from '../md'
-import { getShowModel, getShowTokens, getShowReasoning, getShowTimestamps, getStreamingCursor, getAutoExpandTool, getMsgWidth } from '../prefs'
+import { getShowModel, getShowTokens, getShowReasoning, getShowTimestamps, getStreamingCursor, getAutoExpandTool, getMsgWidth, getShowStepStart } from '../prefs'
 import { toolTitle } from '../toolLabels'
 
 function fmtTokens(item: MessageItem): string {
@@ -185,6 +185,14 @@ function CompactionView({ part }: { part: CompactionPart }) {
   )
 }
 
+function StepStartView() {
+  return (
+    <div className="step-start-part">
+      <span className="step-start-line" />
+    </div>
+  )
+}
+
 function UnknownPartView({ part }: { part: Part }) {
   const [open, setOpen] = useState(false)
   const data = JSON.stringify(part, null, 2)
@@ -225,15 +233,17 @@ export default function MessageBlock({
 
   const assistantTextParts = parts.filter((p) => p.type === 'text' && !(p as { ignored?: boolean }).ignored)
   const assistantText = assistantTextParts.map((p) => (p as { text?: string }).text || '').join('\n')
-  const reasoningParts = parts.filter((p) => p.type === 'reasoning')
+  const showReasoningPref = getShowReasoning()
+  const reasoningParts = showReasoningPref ? parts.filter((p) => p.type === 'reasoning') : []
   const toolParts = parts.filter((p) => p.type === 'tool') as ToolPart[]
   const fileParts = parts.filter((p) => p.type === 'file') as FilePart[]
   const stepFinishParts = parts.filter((p) => p.type === 'step-finish') as StepFinishPart[]
+  const stepStartParts = getShowStepStart() ? (parts.filter((p) => p.type === 'step-start') as StepStartPart[]) : []
   const patchParts = parts.filter((p) => p.type === 'patch') as PatchPart[]
   const subtaskParts = parts.filter((p) => p.type === 'subtask') as SubtaskPart[]
   const retryParts = parts.filter((p) => p.type === 'retry') as RetryPart[]
   const compactionParts = parts.filter((p) => p.type === 'compaction') as CompactionPart[]
-  const unknownParts = parts.filter((p) => !['text', 'reasoning', 'tool', 'file', 'step-finish', 'patch', 'subtask', 'retry', 'compaction'].includes(p.type))
+  const unknownParts = parts.filter((p) => !['text', 'reasoning', 'tool', 'file', 'step-finish', 'step-start', 'patch', 'subtask', 'retry', 'compaction'].includes(p.type))
 
   const hasError = Boolean(info.error)
 
@@ -281,8 +291,12 @@ export default function MessageBlock({
             <CompactionView key={p.id} part={p} />
           ))}
 
+          {stepStartParts.map((p) => (
+            <StepStartView key={p.id} />
+          ))}
+
           {reasoningParts.map((p) => (
-            <ReasoningBlock key={p.id} text={(p as { text?: string }).text || ''} defaultOpen={getShowReasoning()} />
+            <ReasoningBlock key={p.id} text={(p as { text?: string }).text || ''} defaultOpen={false} />
           ))}
 
           {subtaskParts.map((p) => (
